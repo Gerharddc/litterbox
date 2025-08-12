@@ -1,0 +1,13 @@
+[package]
+name = "ask-agent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+env_logger = "0.11.8"
+futures = "0.3.31"
+russh = "0.53.0"
+russh-cryptovec = "0.52.0"
+tempfile = "3.20.0"
+tokio = "1.46.1"
+tokio-stream = { version = "0.1.17", features = ["net"] }

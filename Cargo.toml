@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-tempfile = "0.7"
+eframe = "0.32.3"
 env_logger = "0.11"
 futures = "0.3"
+nix = { version = "0.30", features = ["process"] }
 russh = "0.54"
 russh-cryptovec = "0.52"
-tempfile = "3.20"
-tokio = "1.46"
+tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["net"] }

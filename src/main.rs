@@ -1,110 +1,179 @@
+use async_tempfile::TempDir;
+use eframe::egui;
 use futures::Future;
 use russh::keys::*;
+use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
+
+type ConfReqSender = mpsc::Sender<(&'static str, oneshot::Sender<bool>)>;
 
 #[derive(Clone)]
-struct X {}
-impl agent::server::Agent for X {
+struct AskAgent {
+    conf_req_tx: ConfReqSender,
+}
+
+impl agent::server::Agent for AskAgent {
     fn confirm(
         self,
         _: std::sync::Arc<PrivateKey>,
     ) -> Box<dyn Future<Output = (Self, bool)> + Send + Unpin> {
-        println!("Confirm private key!");
+        println!("TODO: Confirm private key!");
         Box::new(futures::future::ready((self, true)))
     }
 
     async fn confirm_request(&self, msg: agent::server::MessageType) -> bool {
-        print!("Confirm request: ");
-
         use agent::server::MessageType;
-        match msg {
-            MessageType::RequestKeys => {
-                println!("RequestKeys");
-            }
-            MessageType::AddKeys => {
-                println!("AddKeys");
-            }
-            MessageType::RemoveKeys => {
-                println!("RemoveKeys");
-            }
-            MessageType::RemoveAllKeys => {
-                println!("RemoveAllKeys");
-            }
-            MessageType::Sign => {
-                println!("Sign");
-            }
-            MessageType::Lock => {
-                println!("Lock");
-            }
-            MessageType::Unlock => {
-                println!("Unlock");
+
+        let user_req_msg = match msg {
+            MessageType::RequestKeys => "RequestKeys",
+            MessageType::AddKeys => "AddKeys",
+            MessageType::RemoveKeys => "RemoveKeys",
+            MessageType::RemoveAllKeys => "RemoveAllKeys",
+            MessageType::Sign => "Sign",
+            MessageType::Lock => "Lock",
+            MessageType::Unlock => "Unlock",
+        };
+
+        let (user_resp_tx, user_resp_rx) = oneshot::channel();
+
+        match self.conf_req_tx.send((user_req_msg, user_resp_tx)).await {
+            Ok(_) => match user_resp_rx.await {
+                Ok(user_resp) => user_resp,
+                Err(e) => {
+                    println!("Error receiving user response: {:#?}", e);
+                    false
+                }
+            },
+            Err(e) => {
+                println!("Error sending user confirmation request: {:#?}", e);
+                false
             }
         }
-
-        true
     }
 }
 
-const PKCS8_ENCRYPTED: &'static str = "-----BEGIN ENCRYPTED PRIVATE KEY-----\nMIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQITo1O0b8YrS0CAggA\nMAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBBtLH4T1KOfo1GGr7salhR8BIIE\n0KN9ednYwcTGSX3hg7fROhTw7JAJ1D4IdT1fsoGeNu2BFuIgF3cthGHe6S5zceI2\nMpkfwvHbsOlDFWMUIAb/VY8/iYxhNmd5J6NStMYRC9NC0fVzOmrJqE1wITqxtORx\nIkzqkgFUbaaiFFQPepsh5CvQfAgGEWV329SsTOKIgyTj97RxfZIKA+TR5J5g2dJY\nj346SvHhSxJ4Jc0asccgMb0HGh9UUDzDSql0OIdbnZW5KzYJPOx+aDqnpbz7UzY/\nP8N0w/pEiGmkdkNyvGsdttcjFpOWlLnLDhtLx8dDwi/sbEYHtpMzsYC9jPn3hnds\nTcotqjoSZ31O6rJD4z18FOQb4iZs3MohwEdDd9XKblTfYKM62aQJWH6cVQcg+1C7\njX9l2wmyK26Tkkl5Qg/qSfzrCveke5muZgZkFwL0GCcgPJ8RixSB4GOdSMa/hAMU\nkvFAtoV2GluIgmSe1pG5cNMhurxM1dPPf4WnD+9hkFFSsMkTAuxDZIdDk3FA8zof\nYhv0ZTfvT6V+vgH3Hv7Tqcxomy5Qr3tj5vvAqqDU6k7fC4FvkxDh2mG5ovWvc4Nb\nXv8sed0LGpYitIOMldu6650LoZAqJVv5N4cAA2Edqldf7S2Iz1QnA/usXkQd4tLa\nZ80+sDNv9eCVkfaJ6kOVLk/ghLdXWJYRLenfQZtVUXrPkaPpNXgD0dlaTN8KuvML\nUw/UGa+4ybnPsdVflI0YkJKbxouhp4iB4S5ACAwqHVmsH5GRnujf10qLoS7RjDAl\no/wSHxdT9BECp7TT8ID65u2mlJvH13iJbktPczGXt07nBiBse6OxsClfBtHkRLzE\nQF6UMEXsJnIIMRfrZQnduC8FUOkfPOSXc8r9SeZ3GhfbV/DmWZvFPCpjzKYPsM5+\nN8Bw/iZ7NIH4xzNOgwdp5BzjH9hRtCt4sUKVVlWfEDtTnkHNOusQGKu7HkBF87YZ\nRN/Nd3gvHob668JOcGchcOzcsqsgzhGMD8+G9T9oZkFCYtwUXQU2XjMN0R4VtQgZ\nrAxWyQau9xXMGyDC67gQ5xSn+oqMK0HmoW8jh2LG/cUowHFAkUxdzGadnjGhMOI2\nzwNJPIjF93eDF/+zW5E1l0iGdiYyHkJbWSvcCuvTwma9FIDB45vOh5mSR+YjjSM5\nnq3THSWNi7Cxqz12Q1+i9pz92T2myYKBBtu1WDh+2KOn5DUkfEadY5SsIu/Rb7ub\n5FBihk2RN3y/iZk+36I69HgGg1OElYjps3D+A9AjVby10zxxLAz8U28YqJZm4wA/\nT0HLxBiVw+rsHmLP79KvsT2+b4Diqih+VTXouPWC/W+lELYKSlqnJCat77IxgM9e\nYIhzD47OgWl33GJ/R10+RDoDvY4koYE+V5NLglEhbwjloo9Ryv5ywBJNS7mfXMsK\n/uf+l2AscZTZ1mhtL38efTQCIRjyFHc3V31DI0UdETADi+/Omz+bXu0D5VvX+7c6\nb1iVZKpJw8KUjzeUV8yOZhvGu3LrQbhkTPVYL555iP1KN0Eya88ra+FUKMwLgjYr\nJkUx4iad4dTsGPodwEP/Y9oX/Qk3ZQr+REZ8lg6IBoKKqqrQeBJ9gkm1jfKE6Xkc\nCog3JMeTrb3LiPHgN6gU2P30MRp6L1j1J/MtlOAr5rux\n-----END ENCRYPTED PRIVATE KEY-----\n";
-
-fn main() {
+async fn start_ssh_agent(da_sender: ConfReqSender) -> JoinHandle<Result<(), Error>> {
     env_logger::try_init().unwrap_or(());
 
-    let dir = tempfile::tempdir().unwrap();
-    let agent_path = dir.path().join("agent");
+    let dir = TempDir::new().await.unwrap();
+    let agent_path = dir.dir_path().join("agent");
     println!("agent_path: {:#?}", agent_path);
 
-    let core = tokio::runtime::Runtime::new().unwrap();
     let agent_path_ = agent_path.clone();
 
-    // Starting a server
-    let server_handle = core.spawn(async move {
+    let server_handle = tokio::spawn(async move {
+        let _keep_dir_alive = dir; // We need a handle here other the dir gets dropped
+
         let listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),
-            X {},
+            AskAgent {
+                conf_req_tx: da_sender,
+            },
         )
         .await
     });
+    server_handle
+}
 
-    // Decode key using password
-    let mut key = decode_secret_key(PKCS8_ENCRYPTED, Some("blabla")).unwrap();
-    key.set_comment("Lekker key!");
-    let public = key.public_key().clone();
-    println!("Comment: {}", public.comment());
+struct ConfirmationDialog<'a> {
+    user_response: &'a mut bool,
+    user_req_msg: &'static str,
+}
 
-    core.block_on(async move {
-        let stream = tokio::net::UnixStream::connect(&agent_path).await?;
-        let mut client = agent::client::AgentClient::connect(stream);
+impl<'a> ConfirmationDialog<'a> {
+    fn new<'b>(user_response: &'a mut bool, user_req_msg: &'static str) -> Self {
+        Self {
+            user_response,
+            user_req_msg,
+        }
+    }
+}
 
-        client
-            .add_identity(
-                &key,
-                &[
-                    //agent::Constraint::KeyLifetime { seconds: 60 },
-                    agent::Constraint::Confirm,
-                ],
-            )
-            .await?;
+impl eframe::App for ConfirmationDialog<'_> {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Confirm SSH Request");
 
-        let identities = client.request_identities().await?;
-        println!("Identities: {:#?}", identities);
+            ui.label(self.user_req_msg);
 
-        let buf = b"signed message";
-        let sig = client
-            .sign_request(
-                &public,
-                None,
-                russh_cryptovec::CryptoVec::from_slice(&buf[..]),
-            )
-            .await
-            .unwrap();
+            if ui.button("Yes").clicked() {
+                *self.user_response = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
 
-        // Here, `sig` is encoded in a format usable internally by the SSH protocol.
-        println!("sig: {:#?}", sig);
+            if ui.button("No").clicked() {
+                *self.user_response = false;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        });
+    }
+}
 
-        Ok::<(), Error>(())
-    })
-    .unwrap();
+const USER_ACCEPTED: i32 = 123;
+const USER_DECLINED: i32 = 100;
 
-    core.block_on(server_handle).unwrap().unwrap()
+#[tokio::main]
+async fn main() {
+    use nix::{
+        sys::wait::{WaitStatus, waitpid},
+        unistd::{ForkResult, fork},
+    };
+
+    let (conf_req_tx, mut conf_req_rx) = mpsc::channel(100);
+    start_ssh_agent(conf_req_tx).await;
+
+    while let Some((confirmation_msg, user_resp_tx)) = conf_req_rx.recv().await {
+        match unsafe { fork() } {
+            Ok(ForkResult::Parent { child, .. }) => {
+                println!("Awaiting confirmation from dialog process.");
+
+                let user_accepted = match waitpid(child, None) {
+                    Ok(WaitStatus::Exited(_pid, exit_code)) => exit_code == USER_ACCEPTED,
+                    _other => {
+                        println!("Unexpected result from dialog process: {:#?}.", _other);
+                        false
+                    }
+                };
+
+                if let Err(e) = user_resp_tx.send(user_accepted) {
+                    println!("Error sending user response to client: {:#?}.", e);
+                }
+            }
+            Ok(ForkResult::Child) => {
+                let mut user_accepted = false;
+                let native_options = eframe::NativeOptions::default();
+
+                let run_result = eframe::run_native(
+                    "Ask-agent Confirmation",
+                    native_options,
+                    Box::new(|_cc| {
+                        Ok(Box::new(ConfirmationDialog::new(
+                            &mut user_accepted,
+                            confirmation_msg,
+                        )))
+                    }),
+                );
+
+                if let Err(e) = run_result {
+                    println!("Error running ConfirmationDialog: {:#?}", e);
+                }
+
+                let code = if user_accepted {
+                    USER_ACCEPTED
+                } else {
+                    USER_DECLINED
+                };
+                println!("code: {}", code);
+                std::process::exit(code);
+            }
+            Err(_) => {
+                println!("Forking to open ConfirmationDialog failed");
+
+                if let Err(e) = user_resp_tx.send(false) {
+                    println!("Error sending user response to client: {:#?}.", e);
+                }
+            }
+        }
+    }
 }

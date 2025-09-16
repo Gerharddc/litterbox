@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 189.67137 176.08569"
+   version="1.1"
+   id="svg30"
+   inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
+   sodipodi:docname="cat.svg"
+   width="189.67137"
+   height="176.08569"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="2.7341462"
+     inkscape:cx="40.231938"
+     inkscape:cy="76.074936"
+     inkscape:window-width="3440"
+     inkscape:window-height="1371"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g6" />
+  <defs
+     id="defs30" />
+  <!-- Litter box -->
+  <!-- Litter/sand texture -->
+  <g
+     id="g7"
+     transform="translate(-111.50053,-85)">
+    <rect
+       x="112.36854"
+       y="179.78233"
+       width="187.93535"
+       height="80.435349"
+       rx="5.0116091"
+       fill="#2b9cb5"
+       stroke="#1f7a8c"
+       stroke-width="1.73602"
+       id="rect1" />
+    <rect
+       x="117.54311"
+       y="185.08621"
+       width="177.84482"
+       height="69.827591"
+       fill="#d4b896"
+       id="rect3"
+       style="stroke-width:1.21589" />
+    <circle
+       cx="129.65518"
+       cy="201.89655"
+       r="2"
+       fill="#c8a882"
+       id="circle3" />
+    <circle
+       cx="128.01724"
+       cy="238.44827"
+       r="1.5"
+       fill="#c8a882"
+       id="circle4" />
+    <circle
+       cx="160"
+       cy="230"
+       r="2"
+       fill="#c8a882"
+       id="circle5" />
+    <circle
+       cx="200"
+       cy="238"
+       r="1.5"
+       fill="#c8a882"
+       id="circle6" />
+    <circle
+       cx="240"
+       cy="235"
+       r="2"
+       fill="#c8a882"
+       id="circle7" />
+    <circle
+       cx="274.31033"
+       cy="239.75862"
+       r="1.5"
+       fill="#c8a882"
+       id="circle8" />
+    <circle
+       cx="276.81033"
+       cy="213.98276"
+       r="2"
+       fill="#c8a882"
+       id="circle9" />
+  </g>
+  <!-- Cat body -->
+  <!-- Cat head -->
+  <!-- Tabby stripes on head -->
+  <!-- Tabby stripes on body -->
+  <!-- White chest/belly markings -->
+  <!-- Ears -->
+  <!-- Eyes -->
+  <!-- Nose -->
+  <!-- Mouth -->
+  <!-- Whiskers -->
+  <!-- Front paws -->
+  <!-- Tail (partially visible) -->
+  <g
+     id="g6"
+     transform="translate(-109.37223,-85)">
+    <path
+       d="m 210.84812,198.32239 q 1.0849,-22.65328 23.69249,-20.85212 22.6076,1.80115 23.6925,-20.85212 1.08489,-22.65326 23.69249,-20.85212"
+       stroke="#5a5a5a"
+       stroke-width="4.53471"
+       fill="none"
+       id="path10-5"
+       style="opacity:0.8" />
+    <ellipse
+       cx="200"
+       cy="200"
+       rx="60"
+       ry="35"
+       fill="#8b8b8b"
+       id="ellipse9" />
+    <ellipse
+       cx="200"
+       cy="140"
+       rx="45"
+       ry="40"
+       fill="#8b8b8b"
+       id="ellipse10" />
+    <ellipse
+       cx="200"
+       cy="160"
+       rx="25"
+       ry="15"
+       fill="#f0f0f0"
+       id="ellipse13"
+       style="fill:#e6e6e6" />
+    <path
+       d="m 171.81035,114.31034 q 10,-5 20,0 10,5 20,0 10,-5 20,0"
+       stroke="#5a5a5a"
+       stroke-width="2"
+       fill="none"
+       id="path10"
+       style="opacity:0.05" />
+    <ellipse
+       cx="200"
+       cy="190"
+       rx="30"
+       ry="20"
+       fill="#f0f0f0"
+       id="ellipse14" />
+    <polygon
+       points="185,85 195,110 175,110 "
+       fill="#8b8b8b"
+       id="polygon14"
+       transform="translate(-2.0689655)" />
+    <polygon
+       points="205,110 215,85 225,110 "
+       fill="#8b8b8b"
+       id="polygon15" />
+    <polygon
+       points="177,105 183,95 190,105 "
+       fill="#ffb6c1"
+       id="polygon16" />
+    <polygon
+       points="223,105 210,105 217,95 "
+       fill="#ffb6c1"
+       id="polygon17"
+       transform="translate(-1.7413793)" />
+    <ellipse
+       cx="185"
+       cy="130"
+       rx="8"
+       ry="12"
+       fill="#daa520"
+       id="ellipse17" />
+    <ellipse
+       cx="215"
+       cy="130"
+       rx="8"
+       ry="12"
+       fill="#daa520"
+       id="ellipse18" />
+    <ellipse
+       cx="185"
+       cy="132"
+       rx="4"
+       ry="8"
+       fill="#000000"
+       id="ellipse19" />
+    <ellipse
+       cx="215"
+       cy="132"
+       rx="4"
+       ry="8"
+       fill="#000000"
+       id="ellipse20" />
+    <ellipse
+       cx="186"
+       cy="128"
+       rx="2"
+       ry="3"
+       fill="#ffffff"
+       id="ellipse21" />
+    <ellipse
+       cx="216"
+       cy="128"
+       rx="2"
+       ry="3"
+       fill="#ffffff"
+       id="ellipse22" />
+    <polygon
+       points="200,140 195,148 205,148 "
+       fill="#ff69b4"
+       id="polygon22"
+       transform="translate(0.25861931,-1.0344826)" />
+    <path
+       d="m 200,150 q -10,5 -15,0"
+       stroke="#000000"
+       stroke-width="1"
+       fill="none"
+       id="path22" />
+    <path
+       d="m 200,150 q 10,5 15,0"
+       stroke="#000000"
+       stroke-width="1"
+       fill="none"
+       id="path23" />
+    <line
+       x1="160"
+       y1="135"
+       x2="140"
+       y2="132"
+       stroke="#000000"
+       stroke-width="1"
+       id="line23" />
+    <line
+       x1="160"
+       y1="145"
+       x2="140"
+       y2="148"
+       stroke="#000000"
+       stroke-width="1"
+       id="line24" />
+    <line
+       x1="240"
+       y1="135"
+       x2="260"
+       y2="132"
+       stroke="#000000"
+       stroke-width="1"
+       id="line25" />
+    <line
+       x1="240"
+       y1="145"
+       x2="260"
+       y2="148"
+       stroke="#000000"
+       stroke-width="1"
+       id="line26" />
+    <ellipse
+       cx="170"
+       cy="220"
+       rx="8"
+       ry="12"
+       fill="#8b8b8b"
+       id="ellipse26" />
+    <ellipse
+       cx="230"
+       cy="220"
+       rx="8"
+       ry="12"
+       fill="#8b8b8b"
+       id="ellipse27" />
+    <ellipse
+       cx="170"
+       cy="225"
+       rx="6"
+       ry="8"
+       fill="#f0f0f0"
+       id="ellipse28" />
+    <ellipse
+       cx="230"
+       cy="225"
+       rx="6"
+       ry="8"
+       fill="#f0f0f0"
+       id="ellipse29" />
+    <ellipse
+       cx="309.16086"
+       cy="89.223305"
+       rx="15"
+       ry="8"
+       fill="#8b8b8b"
+       transform="rotate(20)"
+       id="ellipse30" />
+    <ellipse
+       cx="58.919262"
+       cy="228.5141"
+       rx="15"
+       ry="8"
+       fill="#8b8b8b"
+       transform="rotate(-22.090328)"
+       id="ellipse30-6" />
+  </g>
+</svg>

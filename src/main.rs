@@ -95,17 +95,21 @@ impl eframe::App for ConfirmationDialog<'_> {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Confirm SSH Request");
 
+            ui.add(egui::Image::new(egui::include_image!("../assets/cat.svg")).max_width(400.0));
+
             ui.label(self.user_req_msg);
 
-            if ui.button("Yes").clicked() {
-                *self.user_response = true;
-                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            }
+            ui.horizontal(|ui| {
+                if ui.button("Yes").clicked() {
+                    *self.user_response = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
 
-            if ui.button("No").clicked() {
-                *self.user_response = false;
-                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            }
+                if ui.button("No").clicked() {
+                    *self.user_response = false;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            });
         });
     }
 }
@@ -142,12 +146,16 @@ async fn main() {
             }
             Ok(ForkResult::Child) => {
                 let mut user_accepted = false;
-                let native_options = eframe::NativeOptions::default();
+
+                let mut native_options = eframe::NativeOptions::default();
+                native_options.viewport.inner_size = Some((250.0, 300.0).into());
 
                 let run_result = eframe::run_native(
-                    "Ask-agent Confirmation",
+                    "LitterBox",
                     native_options,
-                    Box::new(|_cc| {
+                    Box::new(|cc| {
+                        egui_extras::install_image_loaders(&cc.egui_ctx);
+
                         Ok(Box::new(ConfirmationDialog::new(
                             &mut user_accepted,
                             confirmation_msg,

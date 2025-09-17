@@ -52,7 +52,39 @@ struct ContainerDetails {
 #[derive(Deserialize, Debug)]
 struct AllContainers(Vec<ContainerDetails>);
 
-fn list_containers() -> Result<AllContainers, std::io::Error> {
+#[derive(Debug)]
+enum ListContainerError {
+    RunPodman(std::io::Error),
+    ParseOutput(std::str::Utf8Error),
+    Deserialize(serde_json::error::Error),
+}
+
+impl ListContainerError {
+    pub fn print(&self) {
+        match self {
+            ListContainerError::RunPodman(e) => {
+                println!("Could not run podman command. Perhaps it is not installed?");
+
+                // TODO: use env_logger instead
+                eprintln!("{:#?}", e);
+            }
+            ListContainerError::ParseOutput(e) => {
+                println!("Could not parse output from podman.");
+
+                // TODO: use env_logger instead
+                eprintln!("{:#?}", e);
+            }
+            ListContainerError::Deserialize(e) => {
+                println!("Could not deserialize output from podman. Unexpected format.");
+
+                // TODO: use env_logger instead
+                eprintln!("{:#?}", e);
+            }
+        }
+    }
+}
+
+fn list_containers() -> Result<AllContainers, ListContainerError> {
     let res = Command::new("podman")
         .args([
             "ps",
@@ -62,12 +94,12 @@ fn list_containers() -> Result<AllContainers, std::io::Error> {
             "--filter",
             "label=org.opensuse.distrobox.title",
         ])
-        .output()?;
+        .output()
+        .map_err(ListContainerError::RunPodman)?;
 
-    // FIXME: do not unwrap
-    let output = std::str::from_utf8(&res.stdout).unwrap();
-    let containers: AllContainers = serde_json::from_str(output).unwrap();
-    Ok(containers)
+    let output = std::str::from_utf8(&res.stdout).map_err(ListContainerError::ParseOutput)?;
+
+    Ok(serde_json::from_str(output).map_err(ListContainerError::Deserialize)?)
 }
 
 fn create_litterbox(_name: &str, _password: &str) {
@@ -88,9 +120,9 @@ fn main() {
         Commands::Enter { name } => {
             enter_distrobox(&name);
         }
-        Commands::List => {
-            let containers = list_containers().unwrap();
-            println!("containers: {:#?}", containers);
-        }
+        Commands::List => match list_containers() {
+            Ok(containers) => println!("containers: {:#?}", containers),
+            Err(e) => e.print(),
+        },
     }
 }

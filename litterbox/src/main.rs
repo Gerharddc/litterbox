@@ -2,14 +2,16 @@ use clap::{Parser, Subcommand};
 use serde::Deserialize;
 use std::{
     env,
-    path::{Path, PathBuf},
+    ffi::OsString,
+    fs, io,
+    path::Path,
     process::{Command, ExitStatus, Output},
 };
 
 #[derive(Deserialize, Debug)]
 struct LitterboxLabels {
-    #[serde(rename = "org.opensuse.distrobox.title")]
-    title: String,
+    #[serde(rename = "io.litterbox.name")]
+    name: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -26,11 +28,13 @@ struct AllContainers(Vec<ContainerDetails>);
 
 #[derive(Debug)]
 enum LitterboxError {
-    RunPodman(std::io::Error),
+    RunPodman(io::Error),
     PodmanError(ExitStatus, String),
     ParseOutput(std::str::Utf8Error),
     Deserialize(serde_json::error::Error),
-    HomeNotDefined,
+    EnvVarUndefined(&'static str),
+    EnvVarInvalid(&'static str, OsString),
+    DirUncreatable(io::Error, String),
 }
 
 impl LitterboxError {
@@ -41,6 +45,12 @@ impl LitterboxError {
 
                 // TODO: use env_logger instead
                 eprintln!("{:#?}", e);
+            }
+            LitterboxError::PodmanError(exit_status, stderr) => {
+                println!("Podman command returned non-zero error code.");
+
+                // TODO: use env_logger instead
+                eprintln!("error code: {:#?}, message: {}", exit_status, stderr);
             }
             LitterboxError::ParseOutput(e) => {
                 println!("Could not parse output from podman.");
@@ -54,14 +64,20 @@ impl LitterboxError {
                 // TODO: use env_logger instead
                 eprintln!("{:#?}", e);
             }
-            LitterboxError::HomeNotDefined => {
-                println!("Home directory not defined in environment variables.")
+            LitterboxError::EnvVarUndefined(name) => {
+                println!("Environment variable not defined: {}.", name)
             }
-            LitterboxError::PodmanError(exit_status, stderr) => {
-                println!("Podman command returned non-zero error code.");
+            LitterboxError::EnvVarInvalid(name, value) => {
+                println!("Environment variable not a valid string: {}.", name);
 
                 // TODO: use env_logger instead
-                eprintln!("error code: {:#?}, message: {}", exit_status, stderr);
+                eprintln!("{:#?}", value);
+            }
+            LitterboxError::DirUncreatable(error, dir) => {
+                println!("Directory could not be created: {}.", dir);
+
+                // TODO: use env_logger instead
+                eprintln!("{:#?}", error);
             }
         }
     }
@@ -89,7 +105,7 @@ fn list_containers() -> Result<AllContainers, LitterboxError> {
             "--format",
             "json",
             "--filter",
-            "label=org.opensuse.distrobox.title",
+            "label=io.litterbox.name",
         ])
         .output()
         .map_err(LitterboxError::RunPodman)?;
@@ -98,38 +114,92 @@ fn list_containers() -> Result<AllContainers, LitterboxError> {
     Ok(serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)?)
 }
 
-fn path_relative_to_home(relative_path: &str) -> Result<PathBuf, LitterboxError> {
-    let home_dir = env::var_os("HOME").ok_or(LitterboxError::HomeNotDefined)?;
-    let home_path = Path::new(&home_dir);
-    Ok(home_path.join(relative_path))
+fn get_env(name: &'static str) -> Result<String, LitterboxError> {
+    env::var_os(name)
+        .ok_or(LitterboxError::EnvVarUndefined(name))?
+        .into_string()
+        .map_err(|value| LitterboxError::EnvVarInvalid(name, value))
 }
 
-fn build_container(name: &str, password: &str) -> Result<String, LitterboxError> {
-    let password_arg = format!("PASSWORD={}", password);
+fn path_relative_to_home(relative_path: &str) -> Result<String, LitterboxError> {
+    let home_dir = get_env("HOME")?;
+    let home_path = Path::new(&home_dir);
+    let full_path = home_path.join(relative_path);
+
+    // TODO: maybe don't do the lossy conversion?
+    Ok(full_path.to_string_lossy().to_string())
+}
+
+fn build_container(name: &str, password: &str) -> Result<(), LitterboxError> {
     let dockerfile_path = path_relative_to_home(&format!("Litterbox/{}.Dockerfile", name))?;
+    let name_label = format!("io.litterbox.name={}", name);
+    let password_arg = format!("PASSWORD={}", password);
+    let image_name = format!("litterbox-{}", name);
 
     let output = Command::new("podman")
         .args([
             "build",
-            "--quiet",
             "--build-arg",
             &password_arg,
             "-t",
-            name,
+            &image_name,
+            "--label",
+            &name_label,
             "-f",
-            &dockerfile_path.to_string_lossy(),
+            &dockerfile_path,
         ])
         .output()
         .map_err(LitterboxError::RunPodman)?;
 
-    // Image ID will be printed to stdout
     let stdout = extract_stdout(&output)?;
-    let image_id = stdout.trim(); // should be sha256:... or image ID
-    Ok(image_id.to_string())
+    println!("stdout: {}", stdout);
+
+    Ok(())
 }
 
-fn create_litterbox(_name: &str) {
-    todo!()
+fn create_litterbox(name: &str) -> Result<(), LitterboxError> {
+    let name_label = format!("io.litterbox.name={}", name);
+    let image_name = format!("litterbox-{}", name);
+
+    let wayland_display = get_env("WAYLAND_DISPLAY")?;
+    let xdg_runtime_dir = get_env("XDG_RUNTIME_DIR")?;
+
+    let litterbox_home = path_relative_to_home(&format!("Litterbox/{}", name))?;
+    fs::create_dir_all(&litterbox_home)
+        .map_err(|e| LitterboxError::DirUncreatable(e, litterbox_home.clone()))?;
+
+    let output = Command::new("podman")
+        .args([
+            "create",
+            "--name",
+            &image_name,
+            "--userns=keep-id",
+            "--device",
+            "/dev/dri",
+            "--hostname",
+            "litterbox",                    // TODO: think if we want to change this
+            "--security-opt=label=disable", // FIXME: use udica to make better rules instead
+            "-e",
+            &format!("WAYLAND_DISPLAY={wayland_display}"),
+            "-e",
+            "XDG_RUNTIME_DIR=/tmp",
+            "-v",
+            &format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}"),
+            "-v",
+            "/dev/dri:/dev/dri",
+            "-v",
+            &format!("{litterbox_home}:/home/user"),
+            "--label",
+            &name_label,
+            &image_name,
+        ])
+        .output()
+        .map_err(LitterboxError::RunPodman)?;
+
+    let stdout = extract_stdout(&output)?;
+    println!("stdout: {}", stdout);
+
+    Ok(())
 }
 
 fn enter_distrobox(_name: &str) {
@@ -174,8 +244,8 @@ fn try_run() -> Result<(), LitterboxError> {
     match args.command {
         Commands::Create { name, password } => {
             build_container(&name, &password)?;
-            create_litterbox(&name);
-            println!("Container created!");
+            create_litterbox(&name)?;
+            println!("Litterbox created!");
         }
         Commands::Enter { name } => {
             enter_distrobox(&name);

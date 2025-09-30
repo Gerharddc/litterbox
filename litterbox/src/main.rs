@@ -171,6 +171,8 @@ fn create_litterbox(name: &str) -> Result<(), LitterboxError> {
     let output = Command::new("podman")
         .args([
             "create",
+            "--replace", // TODO: do we really want this?
+            "--tty",
             "--name",
             &image_name,
             "--userns=keep-id",
@@ -202,8 +204,18 @@ fn create_litterbox(name: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-fn enter_distrobox(_name: &str) {
-    todo!()
+fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
+    let image_name = format!("litterbox-{}", name);
+
+    // TODO: also match by label?
+
+    let mut child = Command::new("podman")
+        .args(["start", "--interactive", "--attach", &image_name])
+        .spawn()
+        .map_err(LitterboxError::RunPodman)?;
+
+    child.wait().map_err(LitterboxError::RunPodman)?;
+    Ok(())
 }
 
 /// Simple sandbox utility aimed at software development.
@@ -248,7 +260,7 @@ fn try_run() -> Result<(), LitterboxError> {
             println!("Litterbox created!");
         }
         Commands::Enter { name } => {
-            enter_distrobox(&name);
+            enter_distrobox(&name)?;
         }
         Commands::List => {
             let containers = list_containers()?;

@@ -56,18 +56,14 @@ pub const ADJECTIVES: &[&str] = &include!(concat!(env!("OUT_DIR"), "/adjectives.
 pub const NOUNS: &[&str] = &include!(concat!(env!("OUT_DIR"), "/nouns.rs"));
 
 /// A naming strategy for the `Generator`
+#[derive(Default)]
 pub enum Name {
     /// This represents a plain naming strategy of the form `"ADJECTIVE-NOUN"`
+    #[default]
     Plain,
     /// This represents a naming strategy with a random number appended to the
     /// end, of the form `"ADJECTIVE-NOUN-NUMBER"`
     Numbered,
-}
-
-impl Default for Name {
-    fn default() -> Self {
-        Name::Plain
-    }
 }
 
 /// A random name generator which combines an adjective, a noun, and an

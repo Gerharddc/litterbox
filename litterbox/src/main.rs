@@ -7,6 +7,7 @@ use std::{
     path::Path,
     process::{Command, ExitStatus, Output},
 };
+use tabled::{Table, Tabled};
 
 #[derive(Deserialize, Debug)]
 struct LitterboxLabels {
@@ -16,6 +17,9 @@ struct LitterboxLabels {
 
 #[derive(Deserialize, Debug)]
 struct ContainerDetails {
+    #[serde(rename = "Id")]
+    id: String,
+
     #[serde(rename = "Names")]
     names: Vec<String>,
 
@@ -25,6 +29,23 @@ struct ContainerDetails {
 
 #[derive(Deserialize, Debug)]
 struct AllContainers(Vec<ContainerDetails>);
+
+#[derive(Tabled)]
+struct ContainerTableRow {
+    id: String,
+    litterbox_name: String,
+    container_names: String,
+}
+
+impl From<&ContainerDetails> for ContainerTableRow {
+    fn from(value: &ContainerDetails) -> Self {
+        Self {
+            id: value.id.chars().take(12).collect(),
+            litterbox_name: value.labels.name.clone(),
+            container_names: value.names.join(","),
+        }
+    }
+}
 
 #[derive(Debug)]
 enum LitterboxError {
@@ -94,7 +115,7 @@ fn extract_stdout(output: &Output) -> Result<&str, LitterboxError> {
         ));
     }
 
-    Ok(str::from_utf8(&output.stdout).map_err(LitterboxError::ParseOutput)?)
+    str::from_utf8(&output.stdout).map_err(LitterboxError::ParseOutput)
 }
 
 fn list_containers() -> Result<AllContainers, LitterboxError> {
@@ -111,7 +132,7 @@ fn list_containers() -> Result<AllContainers, LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     let stdout = extract_stdout(&output)?;
-    Ok(serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)?)
+    serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)
 }
 
 fn get_env(name: &'static str) -> Result<String, LitterboxError> {
@@ -264,7 +285,10 @@ fn try_run() -> Result<(), LitterboxError> {
         }
         Commands::List => {
             let containers = list_containers()?;
-            println!("containers: {:#?}", containers);
+            let table_rows: Vec<ContainerTableRow> =
+                containers.0.iter().map(|c| c.into()).collect();
+            let table = Table::new(table_rows);
+            println!("{}", table);
         }
     }
 

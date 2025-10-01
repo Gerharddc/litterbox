@@ -9,3 +9,4 @@ clap = { version = "4.5.47", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 names = { path = "../names" }
 serde_json = "1.0"
+tabled = "0.20.0"

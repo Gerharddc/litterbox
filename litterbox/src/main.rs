@@ -239,6 +239,11 @@ fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
+fn delete_distrobox(_name: &str) -> Result<(), LitterboxError> {
+    // Maybe use the "inquire" crate to confirm deletion?
+    todo!()
+}
+
 /// Simple sandbox utility aimed at software development.
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -252,7 +257,6 @@ enum Commands {
     /// Creates a new litterbox
     Create {
         /// The name of the litterbox
-        #[arg(short, long)]
         name: String,
 
         /// The password of the user in the litterbox
@@ -260,15 +264,20 @@ enum Commands {
         password: String,
     },
 
+    /// Lists all the litterboxes that have been created
+    List,
+
     /// Enters an existing litterbox
     Enter {
         /// The name of the litterbox
-        #[arg(short, long)]
         name: String,
     },
 
-    /// Lists all the litterboxes that have been created
-    List,
+    /// Deletes an existing litterbox
+    Delete {
+        /// The name of the litterbox
+        name: String,
+    },
 }
 
 fn try_run() -> Result<(), LitterboxError> {
@@ -289,6 +298,9 @@ fn try_run() -> Result<(), LitterboxError> {
                 containers.0.iter().map(|c| c.into()).collect();
             let table = Table::new(table_rows);
             println!("{}", table);
+        }
+        Commands::Delete { name } => {
+            delete_distrobox(&name)?;
         }
     }
 

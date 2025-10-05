@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use inquire::Confirm;
+use inquire::{Confirm, InquireError, Password};
 use serde::Deserialize;
 use std::{
     env,
@@ -85,6 +85,7 @@ enum LitterboxError {
     ImageAlreadyExists(String),
     DockerfileAlreadyExists(String),
     DockerfileDoesNotExist(String),
+    PromptError(InquireError),
 }
 
 impl LitterboxError {
@@ -159,6 +160,12 @@ impl LitterboxError {
             LitterboxError::DockerfileDoesNotExist(path) => {
                 println!("Could not find Dockerfile to create Litterbox at {path}.");
                 println!("You can use the `prepare` command to make a default one for you.");
+            }
+            LitterboxError::PromptError(error) => {
+                println!("Failed to retrieve valid input from user.");
+
+                // TODO: use env_logger instead
+                eprintln!("{:#?}", error);
             }
         }
     }
@@ -291,7 +298,7 @@ fn get_image_id(lbx_name: &str) -> Result<String, LitterboxError> {
     }
 }
 
-fn build_image(lbx_name: &str, user: &str, password: &str) -> Result<(), LitterboxError> {
+fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     match get_image_id(lbx_name) {
         Ok(id) => return Err(LitterboxError::ImageAlreadyExists(id)),
         Err(LitterboxError::NoImageForName) => {}
@@ -302,6 +309,11 @@ fn build_image(lbx_name: &str, user: &str, password: &str) -> Result<(), Litterb
     if !Path::new(&dockerfile_path).exists() {
         return Err(LitterboxError::DockerfileDoesNotExist(dockerfile_path));
     }
+
+    let password = Password::new("Password:")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()
+        .map_err(LitterboxError::PromptError)?;
 
     let image_name = gen_random_name();
     let mut child = Command::new("podman")
@@ -455,13 +467,9 @@ enum Commands {
         /// The name of the Litterbox
         name: String,
 
-        /// The username of the user in the Litterbox
+        /// The username of the user in the Litterbox (defaults to "user")
         #[arg(short, long)]
         user: Option<String>,
-
-        /// The password of the user in the Litterbox
-        #[arg(short, long)]
-        password: String,
     },
 
     /// List all the Litterboxes that have been created
@@ -490,13 +498,9 @@ fn try_run() -> Result<(), LitterboxError> {
             prepare_litterbox(&name)?;
             println!("Litterbox prepared!");
         }
-        Commands::Create {
-            name,
-            password,
-            user,
-        } => {
+        Commands::Create { name, user } => {
             let user = user.unwrap_or("user".to_string());
-            build_image(&name, &user, &password)?;
+            build_image(&name, &user)?;
             create_litterbox(&name, &user)?;
             println!("Litterbox created!");
         }

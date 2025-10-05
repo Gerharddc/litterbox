@@ -265,6 +265,8 @@ fn build_image(lbx_name: &str, user: &str, password: &str) -> Result<(), Litterb
 
     let dockerfile_path = path_relative_to_home(&format!("Litterbox/{lbx_name}.Dockerfile"))?;
     if !Path::new(&dockerfile_path).exists() {
+        // TODO: offer to create file instead of throwing an error
+
         return Err(LitterboxError::DockerfileDoesNotExist(dockerfile_path));
     }
 
@@ -423,6 +425,7 @@ enum Commands {
     },
 
     /// Lists all the litterboxes that have been created
+    #[clap(visible_alias("ls"))]
     List,
 
     /// Enters an existing litterbox
@@ -432,6 +435,7 @@ enum Commands {
     },
 
     /// Deletes an existing litterbox
+    #[clap(visible_alias("del"), visible_alias("rm"))]
     Delete {
         /// The name of the litterbox
         name: String,

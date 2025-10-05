@@ -76,12 +76,14 @@ enum LitterboxError {
     EnvVarUndefined(&'static str),
     EnvVarInvalid(&'static str, OsString),
     DirUncreatable(io::Error, String),
+    WriteFailed(io::Error, String),
     NoContainerForName,
     MultipleContainersForName,
     ContainerAlreadyExists(String),
     NoImageForName,
     MultipleImagesForName,
     ImageAlreadyExists(String),
+    DockerfileAlreadyExists(String),
     DockerfileDoesNotExist(String),
 }
 
@@ -127,6 +129,12 @@ impl LitterboxError {
                 // TODO: use env_logger instead
                 eprintln!("{:#?}", error);
             }
+            LitterboxError::WriteFailed(error, path) => {
+                println!("File could not be written: {path}.");
+
+                // TODO: use env_logger instead
+                eprintln!("{:#?}", error);
+            }
             LitterboxError::NoContainerForName => {
                 println!("A container with the specified Litterbox name could not be found.");
             }
@@ -145,8 +153,12 @@ impl LitterboxError {
             LitterboxError::ImageAlreadyExists(id) => {
                 println!("Image for Litterbox already exists with id: {id}.");
             }
+            LitterboxError::DockerfileAlreadyExists(path) => {
+                println!("Dockerfile for Litterbox already exists at {path}.");
+            }
             LitterboxError::DockerfileDoesNotExist(path) => {
-                println!("Could not find Dockerfile to create Litterbox at {path}.")
+                println!("Could not find Dockerfile to create Litterbox at {path}.");
+                println!("You can use the `prepare` command to make a default one for you.");
             }
         }
     }
@@ -223,6 +235,29 @@ fn path_relative_to_home(relative_path: &str) -> Result<String, LitterboxError> 
     Ok(full_path.to_string_lossy().to_string())
 }
 
+fn dockerfile_path(lbx_name: &str) -> Result<String, LitterboxError> {
+    path_relative_to_home(&format!("Litterbox/{lbx_name}.Dockerfile"))
+}
+
+fn prepare_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
+    const DEFAULT_DOCKERFILE: &'static str = include_str!("default.Dockerfile");
+
+    let dockerfile_path = dockerfile_path(lbx_name)?;
+    if Path::new(&dockerfile_path).exists() {
+        return Err(LitterboxError::DockerfileAlreadyExists(dockerfile_path));
+    }
+
+    let output_dir = Path::new(&dockerfile_path).parent().unwrap();
+    fs::create_dir_all(output_dir)
+        .map_err(|e| LitterboxError::DirUncreatable(e, output_dir.to_string_lossy().into()))?;
+
+    fs::write(&dockerfile_path, DEFAULT_DOCKERFILE)
+        .map_err(|e| LitterboxError::WriteFailed(e, dockerfile_path.to_owned()))?;
+
+    println!("Default Dockerfile written to {dockerfile_path}");
+    Ok(())
+}
+
 fn gen_random_name() -> String {
     let mut generator = names::Generator::with_naming(names::Name::Numbered);
 
@@ -263,10 +298,8 @@ fn build_image(lbx_name: &str, user: &str, password: &str) -> Result<(), Litterb
         Err(other) => return Err(other),
     };
 
-    let dockerfile_path = path_relative_to_home(&format!("Litterbox/{lbx_name}.Dockerfile"))?;
+    let dockerfile_path = dockerfile_path(lbx_name)?;
     if !Path::new(&dockerfile_path).exists() {
-        // TODO: offer to create file instead of throwing an error
-
         return Err(LitterboxError::DockerfileDoesNotExist(dockerfile_path));
     }
 
@@ -410,34 +443,41 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Creates a new litterbox
+    /// Prepare a new Litterbox with the default Dockerfile
+    #[clap(visible_alias("prep"))]
+    Prepare {
+        /// The name of the Litterbox
+        name: String,
+    },
+
+    /// Create a new Litterbox
     Create {
-        /// The name of the litterbox
+        /// The name of the Litterbox
         name: String,
 
-        /// The username of the user in the litterbox
+        /// The username of the user in the Litterbox
         #[arg(short, long)]
         user: Option<String>,
 
-        /// The password of the user in the litterbox
+        /// The password of the user in the Litterbox
         #[arg(short, long)]
         password: String,
     },
 
-    /// Lists all the litterboxes that have been created
+    /// List all the Litterboxes that have been created
     #[clap(visible_alias("ls"))]
     List,
 
-    /// Enters an existing litterbox
+    /// Enter an existing Litterbox
     Enter {
-        /// The name of the litterbox
+        /// The name of the Litterbox
         name: String,
     },
 
-    /// Deletes an existing litterbox
+    /// Delete an existing Litterbox
     #[clap(visible_alias("del"), visible_alias("rm"))]
     Delete {
-        /// The name of the litterbox
+        /// The name of the Litterbox
         name: String,
     },
 }
@@ -446,6 +486,10 @@ fn try_run() -> Result<(), LitterboxError> {
     let args = Args::parse();
 
     match args.command {
+        Commands::Prepare { name } => {
+            prepare_litterbox(&name)?;
+            println!("Litterbox prepared!");
+        }
         Commands::Create {
             name,
             password,

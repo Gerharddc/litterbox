@@ -256,7 +256,7 @@ fn get_image_id(lbx_name: &str) -> Result<String, LitterboxError> {
     }
 }
 
-fn build_image(lbx_name: &str, password: &str) -> Result<(), LitterboxError> {
+fn build_image(lbx_name: &str, user: &str, password: &str) -> Result<(), LitterboxError> {
     match get_image_id(lbx_name) {
         Ok(id) => return Err(LitterboxError::ImageAlreadyExists(id)),
         Err(LitterboxError::NoImageForName) => {}
@@ -272,6 +272,8 @@ fn build_image(lbx_name: &str, password: &str) -> Result<(), LitterboxError> {
     let mut child = Command::new("podman")
         .args([
             "build",
+            "--build-arg",
+            &format!("USER={}", user),
             "--build-arg",
             &format!("PASSWORD={}", password),
             "-t",
@@ -289,7 +291,7 @@ fn build_image(lbx_name: &str, password: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-fn create_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
+fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     match get_container_id(lbx_name) {
         Ok(id) => return Err(LitterboxError::ContainerAlreadyExists(id)),
         Err(LitterboxError::NoContainerForName) => {}
@@ -309,7 +311,6 @@ fn create_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let mut child = Command::new("podman")
         .args([
             "create",
-            "--replace", // TODO: do we really want this?
             "--tty",
             "--name",
             &container_name,
@@ -328,7 +329,7 @@ fn create_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
             "-v",
             "/dev/dri:/dev/dri",
             "-v",
-            &format!("{litterbox_home}:/home/user"),
+            &format!("{litterbox_home}:/home/{user}"),
             "--label",
             &format!("io.litterbox.name={lbx_name}"),
             &image_id,
@@ -412,6 +413,10 @@ enum Commands {
         /// The name of the litterbox
         name: String,
 
+        /// The username of the user in the litterbox
+        #[arg(short, long)]
+        user: Option<String>,
+
         /// The password of the user in the litterbox
         #[arg(short, long)]
         password: String,
@@ -437,9 +442,14 @@ fn try_run() -> Result<(), LitterboxError> {
     let args = Args::parse();
 
     match args.command {
-        Commands::Create { name, password } => {
-            build_image(&name, &password)?;
-            create_litterbox(&name)?;
+        Commands::Create {
+            name,
+            password,
+            user,
+        } => {
+            let user = user.unwrap_or("user".to_string());
+            build_image(&name, &user, &password)?;
+            create_litterbox(&name, &user)?;
             println!("Litterbox created!");
         }
         Commands::Enter { name } => {

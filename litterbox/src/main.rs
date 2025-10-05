@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use inquire::Confirm;
 use serde::Deserialize;
 use std::{
     env,
@@ -32,16 +33,16 @@ struct AllContainers(Vec<ContainerDetails>);
 
 #[derive(Tabled)]
 struct ContainerTableRow {
-    id: String,
-    litterbox_name: String,
+    name: String,
+    container_id: String,
     container_names: String,
 }
 
 impl From<&ContainerDetails> for ContainerTableRow {
     fn from(value: &ContainerDetails) -> Self {
         Self {
-            id: value.id.chars().take(12).collect(),
-            litterbox_name: value.labels.name.clone(),
+            name: value.labels.name.clone(),
+            container_id: value.id.chars().take(12).collect(),
             container_names: value.names.join(","),
         }
     }
@@ -56,6 +57,9 @@ enum LitterboxError {
     EnvVarUndefined(&'static str),
     EnvVarInvalid(&'static str, OsString),
     DirUncreatable(io::Error, String),
+    NoContainerForName,
+    MultipleContainersForName,
+    ContainerAlreadyExists(String),
 }
 
 impl LitterboxError {
@@ -71,7 +75,7 @@ impl LitterboxError {
                 println!("Podman command returned non-zero error code.");
 
                 // TODO: use env_logger instead
-                eprintln!("error code: {:#?}, message: {}", exit_status, stderr);
+                eprintln!("error code: {:#?}, message: {stderr}", exit_status);
             }
             LitterboxError::ParseOutput(e) => {
                 println!("Could not parse output from podman.");
@@ -86,19 +90,28 @@ impl LitterboxError {
                 eprintln!("{:#?}", e);
             }
             LitterboxError::EnvVarUndefined(name) => {
-                println!("Environment variable not defined: {}.", name)
+                println!("Environment variable not defined: {name}.")
             }
             LitterboxError::EnvVarInvalid(name, value) => {
-                println!("Environment variable not a valid string: {}.", name);
+                println!("Environment variable not a valid string: {name}.");
 
                 // TODO: use env_logger instead
                 eprintln!("{:#?}", value);
             }
             LitterboxError::DirUncreatable(error, dir) => {
-                println!("Directory could not be created: {}.", dir);
+                println!("Directory could not be created: {dir}.");
 
                 // TODO: use env_logger instead
                 eprintln!("{:#?}", error);
+            }
+            LitterboxError::NoContainerForName => {
+                println!("A container with the specified Litterbox name could not be found.");
+            }
+            LitterboxError::MultipleContainersForName => {
+                println!("Multiple containers were found with the specified Litterbox name.");
+            }
+            LitterboxError::ContainerAlreadyExists(id) => {
+                println!("Container already exists with id: {id}.");
             }
         }
     }
@@ -135,6 +148,30 @@ fn list_containers() -> Result<AllContainers, LitterboxError> {
     serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)
 }
 
+fn get_container_id(name: &str) -> Result<String, LitterboxError> {
+    let output = Command::new("podman")
+        .args([
+            "ps",
+            "-a",
+            "--format",
+            "json",
+            "--filter",
+            &format!("label=io.litterbox.name={name}"),
+        ])
+        .output()
+        .map_err(LitterboxError::RunPodman)?;
+
+    let stdout = extract_stdout(&output)?;
+    let containers: AllContainers =
+        serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)?;
+
+    match containers.0.len() {
+        0 => Err(LitterboxError::NoContainerForName),
+        1 => Ok(containers.0[0].id.clone()),
+        _ => Err(LitterboxError::MultipleContainersForName),
+    }
+}
+
 fn get_env(name: &'static str) -> Result<String, LitterboxError> {
     env::var_os(name)
         .ok_or(LitterboxError::EnvVarUndefined(name))?
@@ -153,19 +190,19 @@ fn path_relative_to_home(relative_path: &str) -> Result<String, LitterboxError> 
 
 fn build_container(name: &str, password: &str) -> Result<(), LitterboxError> {
     let dockerfile_path = path_relative_to_home(&format!("Litterbox/{}.Dockerfile", name))?;
-    let name_label = format!("io.litterbox.name={}", name);
-    let password_arg = format!("PASSWORD={}", password);
+
+    // FIXME: generate a random name instead
     let image_name = format!("litterbox-{}", name);
 
     let output = Command::new("podman")
         .args([
             "build",
             "--build-arg",
-            &password_arg,
+            &format!("PASSWORD={}", password),
             "-t",
             &image_name,
             "--label",
-            &name_label,
+            &format!("io.litterbox.name={name}"),
             "-f",
             &dockerfile_path,
         ])
@@ -173,15 +210,19 @@ fn build_container(name: &str, password: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     let stdout = extract_stdout(&output)?;
-    println!("stdout: {}", stdout);
+    println!("{stdout}");
 
     Ok(())
 }
 
 fn create_litterbox(name: &str) -> Result<(), LitterboxError> {
-    let name_label = format!("io.litterbox.name={}", name);
-    let image_name = format!("litterbox-{}", name);
+    match get_container_id(name) {
+        Ok(id) => return Err(LitterboxError::ContainerAlreadyExists(id)),
+        Err(LitterboxError::NoContainerForName) => {}
+        Err(other) => return Err(other),
+    };
 
+    let image_name = format!("litterbox-{}", name);
     let wayland_display = get_env("WAYLAND_DISPLAY")?;
     let xdg_runtime_dir = get_env("XDG_RUNTIME_DIR")?;
 
@@ -213,25 +254,26 @@ fn create_litterbox(name: &str) -> Result<(), LitterboxError> {
             "-v",
             &format!("{litterbox_home}:/home/user"),
             "--label",
-            &name_label,
+            &format!("io.litterbox.name={name}"),
             &image_name,
         ])
         .output()
         .map_err(LitterboxError::RunPodman)?;
 
     let stdout = extract_stdout(&output)?;
-    println!("stdout: {}", stdout);
+    println!("{stdout}");
 
     Ok(())
 }
 
 fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
-    let image_name = format!("litterbox-{}", name);
-
-    // TODO: also match by label?
-
     let mut child = Command::new("podman")
-        .args(["start", "--interactive", "--attach", &image_name])
+        .args([
+            "start",
+            "--interactive",
+            "--attach",
+            &get_container_id(name)?,
+        ])
         .spawn()
         .map_err(LitterboxError::RunPodman)?;
 
@@ -239,9 +281,33 @@ fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-fn delete_distrobox(_name: &str) -> Result<(), LitterboxError> {
-    // Maybe use the "inquire" crate to confirm deletion?
-    todo!()
+fn delete_distrobox(name: &str) -> Result<(), LitterboxError> {
+    // We check if it exists before promting the user
+    let container_id = get_container_id(name)?;
+
+    let should_delete = Confirm::new("Are you sure you want to delete this Litterbox?")
+        .with_default(false)
+        .with_help_message(
+            "This operation cannot be undone and will delete all data/state outside the home directory.",
+        )
+        .prompt();
+
+    match should_delete {
+        Ok(true) => {}
+        _ => return Ok(()),
+    }
+
+    let output = Command::new("podman")
+        .args(["rm", &container_id])
+        .output()
+        .map_err(LitterboxError::RunPodman)?;
+
+    let stdout = extract_stdout(&output)?;
+    println!("{stdout}");
+
+    // TODO: offer to also delete the image for the user
+
+    Ok(())
 }
 
 /// Simple sandbox utility aimed at software development.
@@ -291,16 +357,18 @@ fn try_run() -> Result<(), LitterboxError> {
         }
         Commands::Enter { name } => {
             enter_distrobox(&name)?;
+            println!("Exited Litterbox...")
         }
         Commands::List => {
             let containers = list_containers()?;
             let table_rows: Vec<ContainerTableRow> =
                 containers.0.iter().map(|c| c.into()).collect();
             let table = Table::new(table_rows);
-            println!("{}", table);
+            println!("{table}");
         }
         Commands::Delete { name } => {
             delete_distrobox(&name)?;
+            println!("Litterbox deleted!");
         }
     }
 

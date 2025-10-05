@@ -82,6 +82,7 @@ enum LitterboxError {
     NoImageForName,
     MultipleImagesForName,
     ImageAlreadyExists(String),
+    DockerfileDoesNotExist(String),
 }
 
 impl LitterboxError {
@@ -143,6 +144,9 @@ impl LitterboxError {
             }
             LitterboxError::ImageAlreadyExists(id) => {
                 println!("Image for Litterbox already exists with id: {id}.");
+            }
+            LitterboxError::DockerfileDoesNotExist(path) => {
+                println!("Could not find Dockerfile to create Litterbox at {path}.")
             }
         }
     }
@@ -259,11 +263,12 @@ fn build_image(lbx_name: &str, password: &str) -> Result<(), LitterboxError> {
         Err(other) => return Err(other),
     };
 
-    // TODO: verify that this path exists before continuing
     let dockerfile_path = path_relative_to_home(&format!("Litterbox/{lbx_name}.Dockerfile"))?;
+    if !Path::new(&dockerfile_path).exists() {
+        return Err(LitterboxError::DockerfileDoesNotExist(dockerfile_path));
+    }
 
     let image_name = gen_random_name();
-
     let mut child = Command::new("podman")
         .args([
             "build",
@@ -351,9 +356,9 @@ fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-fn delete_distrobox(name: &str) -> Result<(), LitterboxError> {
+fn delete_distrobox(lbx_name: &str) -> Result<(), LitterboxError> {
     // We check if it exists before promting the user
-    let container_id = get_container_id(name)?;
+    let container_id = get_container_id(lbx_name)?;
 
     let should_delete = Confirm::new("Are you sure you want to delete this Litterbox?")
         .with_default(false)
@@ -364,7 +369,10 @@ fn delete_distrobox(name: &str) -> Result<(), LitterboxError> {
 
     match should_delete {
         Ok(true) => {}
-        _ => return Ok(()),
+        _ => {
+            println!("Okay, the Litterbox won't be deleted!");
+            return Ok(());
+        }
     }
 
     let mut child = Command::new("podman")
@@ -373,9 +381,19 @@ fn delete_distrobox(name: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     child.wait().map_err(LitterboxError::RunPodman)?;
+    println!("Container for Litterbox deleted!");
 
-    // FIXME: also delete the image
+    let image_id = get_image_id(lbx_name)?;
 
+    let mut child = Command::new("podman")
+        .args(["image", "rm", &image_id])
+        .spawn()
+        .map_err(LitterboxError::RunPodman)?;
+
+    child.wait().map_err(LitterboxError::RunPodman)?;
+    println!("Image for Litterbox deleted!");
+
+    // TODO: ask the user if they also want the home dir deleted
     Ok(())
 }
 
@@ -437,7 +455,6 @@ fn try_run() -> Result<(), LitterboxError> {
         }
         Commands::Delete { name } => {
             delete_distrobox(&name)?;
-            println!("Litterbox deleted!");
         }
     }
 

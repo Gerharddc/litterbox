@@ -4,7 +4,7 @@ FROM registry.opensuse.org/opensuse/tumbleweed:latest
 RUN zypper refresh && \
     zypper in -y sudo weston libvulkan_radeon openssh git iputils vulkan-tools
 
-# Install development toolchain
+# Install development toolchain (ADAPT TO YOUR OWN NEEDS)
 RUN zypper in -y rustup clang cmake ninja gcc-c++
 
 ARG USER
@@ -22,4 +22,3 @@ WORKDIR /home/$USER
 #
 # A benefit of not installing such things here is also that they don't
 # need to be re-installed when the container gets rebuilt.
-

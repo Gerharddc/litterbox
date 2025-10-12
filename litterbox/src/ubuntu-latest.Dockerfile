@@ -4,8 +4,8 @@ FROM ubuntu:latest
 RUN apt-get update && \
     apt-get install -y sudo weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools
 
-# Install development toolchain
-RUN apt-get install -y rustup clang cmake ninja gcc-c++
+# Install development toolchain (ADAPT TO YOUR OWN NEEDS)
+RUN apt-get install -y rustup clang cmake ninja-build g++
 
 ARG USER
 ARG PASSWORD

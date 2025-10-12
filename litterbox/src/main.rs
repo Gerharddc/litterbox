@@ -84,6 +84,7 @@ enum LitterboxError {
     EnvVarInvalid(&'static str, OsString),
     DirUncreatable(io::Error, String),
     WriteFailed(io::Error, String),
+    ReadFailed(io::Error, String),
     NoContainerForName,
     MultipleContainersForName,
     ContainerAlreadyExists(String),
@@ -138,6 +139,12 @@ impl LitterboxError {
             }
             LitterboxError::WriteFailed(error, path) => {
                 println!("File could not be written: {path}.");
+
+                // TODO: use env_logger instead
+                eprintln!("{:#?}", error);
+            }
+            LitterboxError::ReadFailed(error, path) => {
+                println!("File could not be read: {path}.");
 
                 // TODO: use env_logger instead
                 eprintln!("{:#?}", error);
@@ -372,7 +379,7 @@ fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     let wayland_display = get_env("WAYLAND_DISPLAY")?;
     let xdg_runtime_dir = get_env("XDG_RUNTIME_DIR")?;
 
-    let litterbox_home = path_relative_to_home(&format!("Litterbox/{}", lbx_name))?;
+    let litterbox_home = path_relative_to_home(lbx_name)?;
     fs::create_dir_all(&litterbox_home)
         .map_err(|e| LitterboxError::DirUncreatable(e, litterbox_home.clone()))?;
 

@@ -12,6 +12,11 @@ use std::{
 };
 use tabled::{Table, Tabled};
 
+use crate::files::{dockerfile_path, path_relative_to_home};
+
+mod files;
+mod keys;
+
 #[derive(Deserialize, Debug)]
 struct LitterboxLabels {
     #[serde(rename = "io.litterbox.name")]
@@ -168,11 +173,18 @@ impl LitterboxError {
     }
 }
 
+fn get_env(lbx_name: &'static str) -> Result<String, LitterboxError> {
+    env::var_os(lbx_name)
+        .ok_or(LitterboxError::EnvVarUndefined(lbx_name))?
+        .into_string()
+        .map_err(|value| LitterboxError::EnvVarInvalid(lbx_name, value))
+}
+
 fn extract_stdout(output: &Output) -> Result<&str, LitterboxError> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        // TODO: perhaps we can just store the COW instead
+        // TODO: perhaps we can just store the COW instead?
         return Err(LitterboxError::PodmanError(
             output.status,
             stderr.into_owned(),
@@ -221,26 +233,6 @@ fn get_container_id(lbx_name: &str) -> Result<String, LitterboxError> {
         1 => Ok(containers.0[0].id.clone()),
         _ => Err(LitterboxError::MultipleContainersForName),
     }
-}
-
-fn get_env(lbx_name: &'static str) -> Result<String, LitterboxError> {
-    env::var_os(lbx_name)
-        .ok_or(LitterboxError::EnvVarUndefined(lbx_name))?
-        .into_string()
-        .map_err(|value| LitterboxError::EnvVarInvalid(lbx_name, value))
-}
-
-fn path_relative_to_home(relative_path: &str) -> Result<String, LitterboxError> {
-    let home_dir = get_env("HOME")?;
-    let home_path = Path::new(&home_dir);
-    let full_path = home_path.join(relative_path);
-
-    // TODO: maybe don't do the lossy conversion?
-    Ok(full_path.to_string_lossy().to_string())
-}
-
-fn dockerfile_path(lbx_name: &str) -> Result<String, LitterboxError> {
-    path_relative_to_home(&format!("Litterbox/{lbx_name}.Dockerfile"))
 }
 
 #[derive(Debug, Copy, Clone, Selectable)]
@@ -511,10 +503,33 @@ enum Commands {
         name: String,
     },
 
-    /// Delete an existing Litterbox
+    /// Delete an existing Litterbox.
     #[clap(visible_alias("del"), visible_alias("rm"))]
     Delete {
         /// The name of the Litterbox to delete
+        name: String,
+    },
+
+    /// Manage SSH keys that can be exposed to Litterboxes
+    #[command(subcommand)]
+    Keys(KeyCommands),
+}
+
+#[derive(Subcommand, Debug)]
+enum KeyCommands {
+    /// List all the keys are being managed
+    #[clap(visible_alias("ls"))]
+    List,
+
+    /// Generate a new random key
+    Generate {
+        /// The name of the key
+        name: String,
+    },
+
+    /// Delete an existing key
+    Delete {
+        /// The name of the key
         name: String,
     },
 }
@@ -547,6 +562,17 @@ fn try_run() -> Result<(), LitterboxError> {
         Commands::Delete { name } => {
             delete_distrobox(&name)?;
         }
+        Commands::Keys(cmd) => process_key_cmd(cmd)?,
+    }
+
+    Ok(())
+}
+
+fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
+    match cmd {
+        KeyCommands::List => todo!(),
+        KeyCommands::Generate { name } => todo!(),
+        KeyCommands::Delete { name } => todo!(),
     }
 
     Ok(())

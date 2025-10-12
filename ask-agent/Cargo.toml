@@ -5,8 +5,8 @@ edition = "2024"
 
 [dependencies]
 async-tempfile = "0.7"
-eframe = "0.32"
-egui_extras = { version="0.32", features=["svg"] }
+eframe = "0.33"
+egui_extras = { version="0.33", features=["svg"] }
 env_logger = "0.11"
 futures = "0.3"
 nix = { version = "0.30", features = ["process"] }

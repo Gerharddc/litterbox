@@ -1,9 +1,11 @@
 use clap::{Parser, Subcommand};
 use inquire::{Confirm, InquireError, Password};
+use inquire_derive::Selectable;
 use serde::Deserialize;
 use std::{
     env,
     ffi::OsString,
+    fmt::Display,
     fs, io,
     path::Path,
     process::{Command, ExitStatus, Output},
@@ -84,7 +86,6 @@ enum LitterboxError {
     MultipleImagesForName,
     ImageAlreadyExists(String),
     DockerfileAlreadyExists(String),
-    DockerfileDoesNotExist(String),
     PromptError(InquireError),
 }
 
@@ -156,10 +157,6 @@ impl LitterboxError {
             }
             LitterboxError::DockerfileAlreadyExists(path) => {
                 println!("Dockerfile for Litterbox already exists at {path}.");
-            }
-            LitterboxError::DockerfileDoesNotExist(path) => {
-                println!("Could not find Dockerfile to create Litterbox at {path}.");
-                println!("You can use the `prepare` command to make a default one for you.");
             }
             LitterboxError::PromptError(error) => {
                 println!("Failed to retrieve valid input from user.");
@@ -246,19 +243,50 @@ fn dockerfile_path(lbx_name: &str) -> Result<String, LitterboxError> {
     path_relative_to_home(&format!("Litterbox/{lbx_name}.Dockerfile"))
 }
 
-fn prepare_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
-    const DEFAULT_DOCKERFILE: &'static str = include_str!("default.Dockerfile");
+#[derive(Debug, Copy, Clone, Selectable)]
+enum Template {
+    OpenSuseTumbleweed,
+    UbuntuLts,
+}
 
+impl Template {
+    fn contents(&self) -> &'static str {
+        match self {
+            Template::OpenSuseTumbleweed => include_str!("tumbleweed.Dockerfile"),
+            Template::UbuntuLts => include_str!("ubuntu-latest.Dockerfile"),
+        }
+    }
+
+    fn name(&self) -> &'static str {
+        match self {
+            Template::OpenSuseTumbleweed => "OpenSUSE Tumbleweed",
+            Template::UbuntuLts => "Ubuntu LTS",
+        }
+    }
+}
+
+impl Display for Template {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+fn prepare_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let dockerfile_path = dockerfile_path(lbx_name)?;
     if Path::new(&dockerfile_path).exists() {
         return Err(LitterboxError::DockerfileAlreadyExists(dockerfile_path));
     }
 
+    // TODO: should we really expect here?
+    let template = Template::select("Choose a template:")
+        .prompt()
+        .expect("Unexpected error selecting template.");
+
     let output_dir = Path::new(&dockerfile_path).parent().unwrap();
     fs::create_dir_all(output_dir)
         .map_err(|e| LitterboxError::DirUncreatable(e, output_dir.to_string_lossy().into()))?;
 
-    fs::write(&dockerfile_path, DEFAULT_DOCKERFILE)
+    fs::write(&dockerfile_path, template.contents())
         .map_err(|e| LitterboxError::WriteFailed(e, dockerfile_path.to_owned()))?;
 
     println!("Default Dockerfile written to {dockerfile_path}");
@@ -307,7 +335,8 @@ fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
 
     let dockerfile_path = dockerfile_path(lbx_name)?;
     if !Path::new(&dockerfile_path).exists() {
-        return Err(LitterboxError::DockerfileDoesNotExist(dockerfile_path));
+        println!("{dockerfile_path} does not exist. Please make one or a use a provided template.");
+        prepare_litterbox(lbx_name)?;
     }
 
     let password = Password::new("Password:")
@@ -455,16 +484,16 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Prepare a new Litterbox with the default Dockerfile
+    /// Prepare a new Litterbox with a template Dockerfile
     #[clap(visible_alias("prep"))]
     Prepare {
-        /// The name of the Litterbox
+        /// The name of the Litterbox to prepare
         name: String,
     },
 
     /// Create a new Litterbox
     Create {
-        /// The name of the Litterbox
+        /// The name of the Litterbox to create
         name: String,
 
         /// The username of the user in the Litterbox (defaults to "user")
@@ -478,14 +507,14 @@ enum Commands {
 
     /// Enter an existing Litterbox
     Enter {
-        /// The name of the Litterbox
+        /// The name of the Litterbox to enter
         name: String,
     },
 
     /// Delete an existing Litterbox
     #[clap(visible_alias("del"), visible_alias("rm"))]
     Delete {
-        /// The name of the Litterbox
+        /// The name of the Litterbox to delete
         name: String,
     },
 }

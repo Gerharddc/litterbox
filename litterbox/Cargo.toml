@@ -11,3 +11,4 @@ names = { path = "../names" }
 serde_json = "1.0"
 tabled = "0.20.0"
 inquire = "0.9.1"
+inquire-derive = "0.9.1"

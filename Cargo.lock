@@ -2410,6 +2410,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "inquire-derive"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "807533895ea669bc861ac63c56fb6cff6e4ed049dff1550c39298c9864ffa561"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "internal-russh-forked-ssh-key"
 version = "0.6.11+upstream-0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2635,6 +2646,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "inquire",
+ "inquire-derive",
  "names",
  "serde",
  "serde_json",

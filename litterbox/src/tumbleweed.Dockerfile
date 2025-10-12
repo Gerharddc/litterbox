@@ -2,7 +2,7 @@ FROM registry.opensuse.org/opensuse/tumbleweed:latest
 
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN zypper refresh && \
-    zypper in -y sudo weston libvulkan_radeon openssh git iputils vulkan-tools
+    zypper in -y sudo weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools
 
 # Install development toolchain (ADAPT TO YOUR OWN NEEDS)
 RUN zypper in -y rustup clang cmake ninja gcc-c++

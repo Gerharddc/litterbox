@@ -11,7 +11,7 @@ ARG USER
 ARG PASSWORD
 
 # Setup non-root user with a password for added security
-RUN useradd -m $USER && \
+RUN usermod -l $USER ubuntu -m -d /home/$USER && \
     echo "${USER}:${PASSWORD}" | chpasswd && \
     echo "${USER} ALL=(ALL) ALL" >> /etc/sudoers
 WORKDIR /home/$USER

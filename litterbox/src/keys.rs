@@ -42,7 +42,7 @@ fn check_password(password: &str, hash: &str) -> bool {
 #[derive(Debug, Deserialize, Serialize)]
 struct Key {
     name: String,
-    encrypted_key: String,
+    encrypted_key: Vec<u8>,
     attached_litterboxes: Vec<String>,
 }
 
@@ -52,7 +52,6 @@ impl Key {
 
         // FIXME: return error instead of crashing
         let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &key).unwrap();
-        let encrypted_key = String::from_utf8(encrypted_key).unwrap();
 
         Self {
             name: name.to_owned(),
@@ -73,16 +72,18 @@ pub struct Keys {
 impl Keys {
     fn save_to_file(&self) -> Result<(), LitterboxError> {
         let path = keyfile_path()?;
-        let contents = ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default())
-            .map_err(|e| {
-                eprintln!("Serialise error: {:#?}", e);
-                LitterboxError::FailedToSerialise("Keys")
-            })?;
+        // let contents = ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default())
+        let contents = ron::ser::to_string(self).map_err(|e| {
+            eprintln!("Serialise error: {:#?}", e);
+            LitterboxError::FailedToSerialise("Keys")
+        })?;
         write_file(path.as_path(), &contents)
     }
 
     pub fn init_default() -> Result<Self, LitterboxError> {
+        println!("Please enter a password to protect your keys.");
         let password = Password::new("Key Manager Password")
+            .with_display_mode(inquire::PasswordDisplayMode::Masked)
             .prompt()
             .map_err(LitterboxError::PromptError)?;
 
@@ -100,6 +101,7 @@ impl Keys {
     pub fn load() -> Result<Self, LitterboxError> {
         let keyfile = keyfile_path()?;
         if !keyfile.exists() {
+            println!("Keys file does not exist yet. A new one will be created.");
             return Self::init_default();
         }
 
@@ -116,8 +118,10 @@ impl Keys {
     }
 
     fn prompt_password(&self) -> Result<String, LitterboxError> {
+        println!("Please enter the password you chose for the key manager.");
         loop {
             let password = Password::new("Key Manager Password")
+                .with_display_mode(inquire::PasswordDisplayMode::Masked)
                 .prompt()
                 .map_err(LitterboxError::PromptError)?;
 
@@ -130,6 +134,8 @@ impl Keys {
     }
 
     pub fn generate(&mut self, key_name: &str) -> Result<(), LitterboxError> {
+        // FIXME: make sure a key with this name does not exist yet
+
         let password = self.prompt_password()?;
         self.keys.push(Key::new(key_name, &password));
         self.save_to_file()?;

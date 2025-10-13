@@ -1,21 +1,22 @@
 use clap::{Parser, Subcommand};
-use inquire::{Confirm, InquireError, Password};
+use inquire::{Confirm, Password};
 use inquire_derive::Selectable;
 use serde::Deserialize;
 use std::{
     env,
-    ffi::OsString,
     fmt::Display,
-    fs, io,
+    fs,
     path::Path,
-    process::{Command, ExitStatus, Output},
+    process::{Command, Output},
 };
 use tabled::{Table, Tabled};
 
-use crate::files::{dockerfile_path, path_relative_to_home};
-
+mod errors;
 mod files;
 mod keys;
+
+use crate::files::{dockerfile_path, path_relative_to_home};
+use crate::{errors::LitterboxError, files::write_file};
 
 #[derive(Deserialize, Debug)]
 struct LitterboxLabels {
@@ -70,112 +71,6 @@ impl From<&ContainerDetails> for ContainerTableRow {
             container_names: value.names.join(","),
             image: value.image.clone(),
             image_id: value.image_id.chars().take(12).collect(),
-        }
-    }
-}
-
-#[derive(Debug)]
-enum LitterboxError {
-    RunPodman(io::Error),
-    PodmanError(ExitStatus, String),
-    ParseOutput(std::str::Utf8Error),
-    Deserialize(serde_json::error::Error),
-    EnvVarUndefined(&'static str),
-    EnvVarInvalid(&'static str, OsString),
-    DirUncreatable(io::Error, String),
-    WriteFailed(io::Error, String),
-    ReadFailed(io::Error, String),
-    NoContainerForName,
-    MultipleContainersForName,
-    ContainerAlreadyExists(String),
-    NoImageForName,
-    MultipleImagesForName,
-    ImageAlreadyExists(String),
-    DockerfileAlreadyExists(String),
-    PromptError(InquireError),
-}
-
-impl LitterboxError {
-    pub fn print(&self) {
-        match self {
-            LitterboxError::RunPodman(e) => {
-                println!("Could not run podman command. Perhaps it is not installed?");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", e);
-            }
-            LitterboxError::PodmanError(exit_status, stderr) => {
-                println!("Podman command returned non-zero error code.");
-
-                // TODO: use env_logger instead
-                eprintln!("error code: {:#?}, message: {stderr}", exit_status);
-            }
-            LitterboxError::ParseOutput(e) => {
-                println!("Could not parse output from podman.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", e);
-            }
-            LitterboxError::Deserialize(e) => {
-                println!("Could not deserialize output from podman. Unexpected format.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", e);
-            }
-            LitterboxError::EnvVarUndefined(name) => {
-                println!("Environment variable not defined: {name}.")
-            }
-            LitterboxError::EnvVarInvalid(name, value) => {
-                println!("Environment variable not a valid string: {name}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", value);
-            }
-            LitterboxError::DirUncreatable(error, dir) => {
-                println!("Directory could not be created: {dir}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
-            }
-            LitterboxError::WriteFailed(error, path) => {
-                println!("File could not be written: {path}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
-            }
-            LitterboxError::ReadFailed(error, path) => {
-                println!("File could not be read: {path}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
-            }
-            LitterboxError::NoContainerForName => {
-                println!("A container with the specified Litterbox name could not be found.");
-            }
-            LitterboxError::MultipleContainersForName => {
-                println!("Multiple containers were found with the specified Litterbox name.");
-            }
-            LitterboxError::ContainerAlreadyExists(id) => {
-                println!("Container for Litterbox already exists with id: {id}.");
-            }
-            LitterboxError::NoImageForName => {
-                println!("An image with the specified Litterbox name could not be found.");
-            }
-            LitterboxError::MultipleImagesForName => {
-                println!("Multiple images were found with the specified Litterbox name.");
-            }
-            LitterboxError::ImageAlreadyExists(id) => {
-                println!("Image for Litterbox already exists with id: {id}.");
-            }
-            LitterboxError::DockerfileAlreadyExists(path) => {
-                println!("Dockerfile for Litterbox already exists at {path}.");
-            }
-            LitterboxError::PromptError(error) => {
-                println!("Failed to retrieve valid input from user.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
-            }
         }
     }
 }
@@ -271,33 +166,24 @@ impl Display for Template {
 }
 
 fn prepare_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
-    let dockerfile_path = dockerfile_path(lbx_name)?;
-    if Path::new(&dockerfile_path).exists() {
-        return Err(LitterboxError::DockerfileAlreadyExists(dockerfile_path));
+    let dockerfile = dockerfile_path(lbx_name)?;
+    if dockerfile.exists() {
+        return Err(LitterboxError::DockerfileAlreadyExists(dockerfile));
     }
 
-    // TODO: should we really expect here?
     let template = Template::select("Choose a template:")
         .prompt()
-        .expect("Unexpected error selecting template.");
+        .map_err(|e| LitterboxError::PromptError(e))?;
 
-    let output_dir = Path::new(&dockerfile_path).parent().unwrap();
-    fs::create_dir_all(output_dir)
-        .map_err(|e| LitterboxError::DirUncreatable(e, output_dir.to_string_lossy().into()))?;
+    write_file(dockerfile.as_path(), template.contents())?;
+    println!("Default Dockerfile written to {}", dockerfile.display());
 
-    fs::write(&dockerfile_path, template.contents())
-        .map_err(|e| LitterboxError::WriteFailed(e, dockerfile_path.to_owned()))?;
-
-    println!("Default Dockerfile written to {dockerfile_path}");
     Ok(())
 }
 
 fn gen_random_name() -> String {
     let mut generator = names::Generator::with_naming(names::Name::Numbered);
-
-    // TODO: is it really safe to unwrap here?
-    let name = generator.next().unwrap();
-
+    let name = generator.next().expect("Name should not be none.");
     format!("lbx-{name}")
 }
 
@@ -333,8 +219,11 @@ fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     };
 
     let dockerfile_path = dockerfile_path(lbx_name)?;
-    if !Path::new(&dockerfile_path).exists() {
-        println!("{dockerfile_path} does not exist. Please make one or a use a provided template.");
+    if !dockerfile_path.exists() {
+        println!(
+            "{} does not exist. Please make one or a use a provided template.",
+            dockerfile_path.display()
+        );
         prepare_litterbox(lbx_name)?;
     }
 
@@ -356,7 +245,7 @@ fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
             "--label",
             &format!("io.litterbox.name={lbx_name}"),
             "-f",
-            &dockerfile_path,
+            dockerfile_path.to_str().expect("Invalid dockerfile_path."),
         ])
         .spawn()
         .map_err(LitterboxError::RunPodman)?;
@@ -404,7 +293,10 @@ fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
             "-v",
             "/dev/dri:/dev/dri",
             "-v",
-            &format!("{litterbox_home}:/home/{user}"),
+            &format!(
+                "{}:/home/{user}",
+                litterbox_home.to_str().expect("Invalid litterbox_home.")
+            ),
             "--label",
             &format!("io.litterbox.name={lbx_name}"),
             &image_id,

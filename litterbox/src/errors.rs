@@ -20,6 +20,7 @@ pub enum LitterboxError {
     ImageAlreadyExists(String),
     DockerfileAlreadyExists(PathBuf),
     PromptError(InquireError),
+    FailedToSerialise(&'static str),
 }
 
 impl LitterboxError {
@@ -106,6 +107,9 @@ impl LitterboxError {
 
                 // TODO: use env_logger instead
                 eprintln!("{:#?}", error);
+            }
+            LitterboxError::FailedToSerialise(name) => {
+                println!("Failed to serialise {name}");
             }
         }
     }

@@ -6,7 +6,6 @@ use std::{
     env,
     fmt::Display,
     fs,
-    path::Path,
     process::{Command, Output},
 };
 use tabled::{Table, Tabled};
@@ -15,8 +14,12 @@ mod errors;
 mod files;
 mod keys;
 
-use crate::files::{dockerfile_path, path_relative_to_home};
-use crate::{errors::LitterboxError, files::write_file};
+use crate::{
+    errors::LitterboxError,
+    files::write_file,
+    files::{dockerfile_path, path_relative_to_home},
+    keys::Keys,
+};
 
 #[derive(Deserialize, Debug)]
 struct LitterboxLabels {
@@ -173,7 +176,7 @@ fn prepare_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
 
     let template = Template::select("Choose a template:")
         .prompt()
-        .map_err(|e| LitterboxError::PromptError(e))?;
+        .map_err(LitterboxError::PromptError)?;
 
     write_file(dockerfile.as_path(), template.contents())?;
     println!("Default Dockerfile written to {}", dockerfile.display());
@@ -468,10 +471,18 @@ fn try_run() -> Result<(), LitterboxError> {
 }
 
 fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
+    let mut keys = Keys::load()?;
+
     match cmd {
-        KeyCommands::List => todo!(),
-        KeyCommands::Generate { name } => todo!(),
-        KeyCommands::Delete { name } => todo!(),
+        KeyCommands::List => {
+            keys.print_list();
+        }
+        KeyCommands::Generate { name } => {
+            keys.generate(&name)?;
+        }
+        KeyCommands::Delete { name } => {
+            keys.delete(&name)?;
+        }
     }
 
     Ok(())

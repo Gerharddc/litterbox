@@ -34,3 +34,7 @@ pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {
 
     Ok(())
 }
+
+pub fn read_file(path: &Path) -> Result<String, LitterboxError> {
+    fs::read_to_string(path).map_err(|e| LitterboxError::ReadFailed(e, path.to_path_buf()))
+}

@@ -60,8 +60,7 @@ async fn start_ssh_agent(da_sender: ConfReqSender) -> JoinHandle<Result<(), Erro
     println!("agent_path: {:#?}", agent_path);
 
     let agent_path_ = agent_path.clone();
-
-    let server_handle = tokio::spawn(async move {
+    tokio::spawn(async move {
         let _keep_dir_alive = dir; // We need a handle here other the dir gets dropped
 
         let listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
@@ -72,8 +71,7 @@ async fn start_ssh_agent(da_sender: ConfReqSender) -> JoinHandle<Result<(), Erro
             },
         )
         .await
-    });
-    server_handle
+    })
 }
 
 struct ConfirmationDialog<'a> {
@@ -82,7 +80,7 @@ struct ConfirmationDialog<'a> {
 }
 
 impl<'a> ConfirmationDialog<'a> {
-    fn new<'b>(user_response: &'a mut bool, user_req_msg: &'static str) -> Self {
+    fn new(user_response: &'a mut bool, user_req_msg: &'static str) -> Self {
         Self {
             user_response,
             user_req_msg,

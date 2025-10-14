@@ -2,6 +2,7 @@ use argon2::Argon2;
 use inquire::Password;
 use russh::keys::{Algorithm, PrivateKey, pkcs8::encode_pkcs8_encrypted};
 use serde::{Deserialize, Serialize};
+use tabled::{Table, Tabled};
 
 use crate::{
     LitterboxError,
@@ -61,15 +62,30 @@ impl Key {
     }
 }
 
+#[derive(Tabled)]
+struct KeyTableRow {
+    name: String,
+    attached_litterboxes: String,
+}
+
+impl From<&Key> for KeyTableRow {
+    fn from(value: &Key) -> Self {
+        Self {
+            name: value.name.clone(),
+            attached_litterboxes: value.attached_litterboxes.join(","),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Keys {
     password_hash: String,
     keys: Vec<Key>,
 }
 
-// TODO: perhaps we should place a lock on the keyfile while this struct exists?
-
 impl Keys {
+    // TODO: perhaps we should place a lock on the keyfile while this struct exists?
+
     fn save_to_file(&self) -> Result<(), LitterboxError> {
         let path = keyfile_path()?;
         // let contents = ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default())
@@ -113,8 +129,9 @@ impl Keys {
     }
 
     pub fn print_list(&self) {
-        // List all keys and the containers they are assigned to
-        todo!()
+        let table_rows: Vec<KeyTableRow> = self.keys.iter().map(|c| c.into()).collect();
+        let table = Table::new(table_rows);
+        println!("{table}");
     }
 
     fn prompt_password(&self) -> Result<String, LitterboxError> {

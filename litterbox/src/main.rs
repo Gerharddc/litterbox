@@ -51,7 +51,6 @@ fn extract_stdout(output: &Output) -> Result<&str, LitterboxError> {
             stderr.into_owned(),
         ));
     }
-
     str::from_utf8(&output.stdout).map_err(LitterboxError::ParseOutput)
 }
 
@@ -104,7 +103,7 @@ fn gen_random_name() -> String {
     format!("lbx-{name}")
 }
 
-/// Simple sandbox utility aimed at software development.
+/// Simple sandbox utility aimed at software development
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -174,7 +173,6 @@ enum KeyCommands {
 
 fn try_run() -> Result<(), LitterboxError> {
     let args = Args::parse();
-
     match args.command {
         Commands::Prepare { name } => {
             prepare_litterbox(&name)?;
@@ -202,7 +200,6 @@ fn try_run() -> Result<(), LitterboxError> {
         }
         Commands::Keys(cmd) => process_key_cmd(cmd)?,
     }
-
     Ok(())
 }
 

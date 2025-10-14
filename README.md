@@ -1,5 +1,11 @@
 # Litterbox
 
+[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml)
+
+<p align="center">
+  <img src="ask-agent/assets/cat.svg" alt="Centered SVG" width="200"/>
+</p>
+
 Litterbox is a Linux sandbox environment catered to the needs of developers. Its primary goal is to provide SOME isolation between a containerised development environment and a host system. Its secondary goal is to provide a repeatable and documented environment for development.
 
 The isolation goal is to prevent rogue processes (which might arrive through a supply chain attack or similar) from gaining access to sensitive files on your home directory or access to all of your SSH keys. Litterbox achieves file system isolation by restricting a development container to only have access to a single folder on your host system (and nothing above it). SSH key protection is achieved with a custom SSH agent that only exposes a limited number of SSH keys to a single Litterbox and prompts the user (via a pop-up window) before completing any signing requests.

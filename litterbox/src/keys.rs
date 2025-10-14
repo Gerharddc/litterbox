@@ -163,3 +163,18 @@ impl Keys {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_hash_and_verify_password() {
+        let password = "some_random_pass";
+        let hash = hash_password(password);
+        assert_ne!(password, &hash);
+
+        assert!(check_password(password, &hash));
+        assert!(!check_password("wrong_pass", &hash));
+    }
+}

@@ -2674,8 +2674,10 @@ version = "0.1.0"
 dependencies = [
  "argon2",
  "clap",
+ "env_logger",
  "inquire",
  "inquire-derive",
+ "log",
  "names",
  "ron",
  "russh",

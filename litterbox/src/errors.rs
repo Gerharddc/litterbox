@@ -1,4 +1,5 @@
 use inquire::InquireError;
+use log::error;
 use std::{ffi::OsString, io, path::PathBuf, process::ExitStatus};
 
 #[derive(Debug)]
@@ -27,58 +28,39 @@ impl LitterboxError {
     pub fn print(&self) {
         match self {
             LitterboxError::RunPodman(e) => {
+                error!("{:#?}", e);
                 println!("Could not run podman command. Perhaps it is not installed?");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", e);
             }
             LitterboxError::PodmanError(exit_status, stderr) => {
+                error!("error code: {:#?}, message: {stderr}", exit_status);
                 println!("Podman command returned non-zero error code.");
-
-                // TODO: use env_logger instead
-                eprintln!("error code: {:#?}, message: {stderr}", exit_status);
             }
             LitterboxError::ParseOutput(e) => {
+                error!("{:#?}", e);
                 println!("Could not parse output from podman.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", e);
             }
             LitterboxError::Deserialize(e) => {
+                error!("{:#?}", e);
                 println!("Could not deserialize output from podman. Unexpected format.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", e);
             }
             LitterboxError::EnvVarUndefined(name) => {
                 println!("Environment variable not defined: {name}.")
             }
             LitterboxError::EnvVarInvalid(name, value) => {
+                error!("{:#?}", value);
                 println!("Environment variable not a valid string: {name}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", value);
             }
             LitterboxError::DirUncreatable(error, dir) => {
-                let dir = dir.display();
-                println!("Directory could not be created: {dir}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
+                error!("{:#?}", error);
+                println!("Directory could not be created: {}.", dir.display());
             }
             LitterboxError::WriteFailed(error, path) => {
-                let path = path.display();
-                println!("File could not be written: {path}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
+                error!("{:#?}", error);
+                println!("File could not be written: {}.", path.display());
             }
             LitterboxError::ReadFailed(error, path) => {
-                let path = path.display();
-                println!("File could not be read: {path}.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
+                error!("{:#?}", error);
+                println!("File could not be read: {}.", path.display());
             }
             LitterboxError::NoContainerForName => {
                 println!("A container with the specified Litterbox name could not be found.");
@@ -99,14 +81,14 @@ impl LitterboxError {
                 println!("Image for Litterbox already exists with id: {id}.");
             }
             LitterboxError::DockerfileAlreadyExists(path) => {
-                let path = path.display();
-                println!("Dockerfile for Litterbox already exists at {path}.");
+                println!(
+                    "Dockerfile for Litterbox already exists at {}.",
+                    path.display()
+                );
             }
             LitterboxError::PromptError(error) => {
+                error!("{:#?}", error);
                 println!("Failed to retrieve valid input from user.");
-
-                // TODO: use env_logger instead
-                eprintln!("{:#?}", error);
             }
             LitterboxError::FailedToSerialise(name) => {
                 println!("Failed to serialise {name}");

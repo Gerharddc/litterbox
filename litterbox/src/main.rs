@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use inquire::{Confirm, Password};
 use inquire_derive::Selectable;
+use log::{debug, info};
 use serde::Deserialize;
 use std::{
     env,
@@ -179,8 +180,7 @@ fn prepare_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::PromptError)?;
 
     write_file(dockerfile.as_path(), template.contents())?;
-    println!("Default Dockerfile written to {}", dockerfile.display());
-
+    info!("Default Dockerfile written to {}", dockerfile.display());
     Ok(())
 }
 
@@ -254,7 +254,7 @@ fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     child.wait().map_err(LitterboxError::RunPodman)?;
-    println!("Built image named {image_name}.");
+    info!("Built image named {image_name}.");
     Ok(())
 }
 
@@ -308,7 +308,7 @@ fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     child.wait().map_err(LitterboxError::RunPodman)?;
-    println!("Created container named {container_name}.");
+    info!("Created container named {container_name}.");
     Ok(())
 }
 
@@ -324,6 +324,7 @@ fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     child.wait().map_err(LitterboxError::RunPodman)?;
+    debug!("Distrobox finished.");
     Ok(())
 }
 
@@ -352,7 +353,7 @@ fn delete_distrobox(lbx_name: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     child.wait().map_err(LitterboxError::RunPodman)?;
-    println!("Container for Litterbox deleted!");
+    info!("Container for Litterbox deleted!");
 
     let image_id = get_image_id(lbx_name)?;
 
@@ -362,7 +363,7 @@ fn delete_distrobox(lbx_name: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     child.wait().map_err(LitterboxError::RunPodman)?;
-    println!("Image for Litterbox deleted!");
+    info!("Image for Litterbox deleted!");
 
     // TODO: ask the user if they also want the home dir deleted
     Ok(())
@@ -472,7 +473,6 @@ fn try_run() -> Result<(), LitterboxError> {
 
 fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
     let mut keys = Keys::load()?;
-
     match cmd {
         KeyCommands::List => {
             keys.print_list();
@@ -484,11 +484,12 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
             keys.delete(&name)?;
         }
     }
-
     Ok(())
 }
 
 fn main() {
+    env_logger::init();
+
     if let Err(e) = try_run() {
         e.print();
     }

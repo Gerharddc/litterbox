@@ -1,0 +1,266 @@
+use crate::{
+    errors::LitterboxError,
+    extract_stdout,
+    files::{dockerfile_path, path_relative_to_home},
+    gen_random_name, get_env, prepare_litterbox,
+};
+use inquire::{Confirm, Password};
+use log::{debug, info};
+use serde::Deserialize;
+use std::{fs, process::Command};
+
+#[derive(Deserialize, Debug)]
+pub struct LitterboxLabels {
+    #[serde(rename = "io.litterbox.name")]
+    pub name: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ContainerDetails {
+    #[serde(rename = "Id")]
+    pub id: String,
+
+    #[serde(rename = "Image")]
+    pub image: String,
+
+    #[serde(rename = "ImageID")]
+    pub image_id: String,
+
+    #[serde(rename = "Names")]
+    pub names: Vec<String>,
+
+    #[serde(rename = "Labels")]
+    pub labels: LitterboxLabels,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AllContainers(pub Vec<ContainerDetails>);
+
+#[derive(Deserialize, Debug)]
+pub struct ImageDetails {
+    #[serde(rename = "Id")]
+    pub id: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct AllImages(Vec<ImageDetails>);
+
+pub fn list_containers() -> Result<AllContainers, LitterboxError> {
+    let output = Command::new("podman")
+        .args([
+            "ps",
+            "-a",
+            "--format",
+            "json",
+            "--filter",
+            "label=io.litterbox.name",
+        ])
+        .output()
+        .map_err(LitterboxError::RunPodman)?;
+
+    let stdout = extract_stdout(&output)?;
+    serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)
+}
+
+pub fn get_container_id(lbx_name: &str) -> Result<String, LitterboxError> {
+    let output = Command::new("podman")
+        .args([
+            "ps",
+            "-a",
+            "--format",
+            "json",
+            "--filter",
+            &format!("label=io.litterbox.name={lbx_name}"),
+        ])
+        .output()
+        .map_err(LitterboxError::RunPodman)?;
+
+    let stdout = extract_stdout(&output)?;
+    let containers: AllContainers =
+        serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)?;
+
+    match containers.0.len() {
+        0 => Err(LitterboxError::NoContainerForName),
+        1 => Ok(containers.0[0].id.clone()),
+        _ => Err(LitterboxError::MultipleContainersForName),
+    }
+}
+
+pub fn get_image_id(lbx_name: &str) -> Result<String, LitterboxError> {
+    let output = Command::new("podman")
+        .args([
+            "image",
+            "ls",
+            "-a",
+            "--format",
+            "json",
+            "--filter",
+            &format!("label=io.litterbox.name={lbx_name}"),
+        ])
+        .output()
+        .map_err(LitterboxError::RunPodman)?;
+
+    let stdout = extract_stdout(&output)?;
+    let images: AllImages = serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)?;
+
+    match images.0.len() {
+        0 => Err(LitterboxError::NoImageForName),
+        1 => Ok(images.0[0].id.clone()),
+        _ => Err(LitterboxError::MultipleImagesForName),
+    }
+}
+
+pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
+    match get_image_id(lbx_name) {
+        Ok(id) => return Err(LitterboxError::ImageAlreadyExists(id)),
+        Err(LitterboxError::NoImageForName) => {}
+        Err(other) => return Err(other),
+    };
+
+    let dockerfile_path = dockerfile_path(lbx_name)?;
+    if !dockerfile_path.exists() {
+        println!(
+            "{} does not exist. Please make one or a use a provided template.",
+            dockerfile_path.display()
+        );
+        prepare_litterbox(lbx_name)?;
+    }
+
+    let password = Password::new("Password:")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()
+        .map_err(LitterboxError::PromptError)?;
+
+    let image_name = gen_random_name();
+    let mut child = Command::new("podman")
+        .args([
+            "build",
+            "--build-arg",
+            &format!("USER={}", user),
+            "--build-arg",
+            &format!("PASSWORD={}", password),
+            "-t",
+            &image_name,
+            "--label",
+            &format!("io.litterbox.name={lbx_name}"),
+            "-f",
+            dockerfile_path.to_str().expect("Invalid dockerfile_path."),
+        ])
+        .spawn()
+        .map_err(LitterboxError::RunPodman)?;
+
+    child.wait().map_err(LitterboxError::RunPodman)?;
+    info!("Built image named {image_name}.");
+    Ok(())
+}
+
+pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
+    match get_container_id(lbx_name) {
+        Ok(id) => return Err(LitterboxError::ContainerAlreadyExists(id)),
+        Err(LitterboxError::NoContainerForName) => {}
+        Err(other) => return Err(other),
+    };
+
+    let image_id = get_image_id(lbx_name)?;
+    let container_name = gen_random_name();
+
+    let wayland_display = get_env("WAYLAND_DISPLAY")?;
+    let xdg_runtime_dir = get_env("XDG_RUNTIME_DIR")?;
+
+    let litterbox_home = path_relative_to_home(lbx_name)?;
+    fs::create_dir_all(&litterbox_home)
+        .map_err(|e| LitterboxError::DirUncreatable(e, litterbox_home.clone()))?;
+
+    let mut child = Command::new("podman")
+        .args([
+            "create",
+            "--tty",
+            "--name",
+            &container_name,
+            "--userns=keep-id",
+            "--device",
+            "/dev/dri",
+            "--hostname",
+            &format!("lbx-{lbx_name}"),
+            "--security-opt=label=disable", // FIXME: use udica to make better rules instead
+            "-e",
+            &format!("WAYLAND_DISPLAY={wayland_display}"),
+            "-e",
+            "XDG_RUNTIME_DIR=/tmp",
+            "-v",
+            &format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}"),
+            "-v",
+            "/dev/dri:/dev/dri",
+            "-v",
+            &format!(
+                "{}:/home/{user}",
+                litterbox_home.to_str().expect("Invalid litterbox_home.")
+            ),
+            "--label",
+            &format!("io.litterbox.name={lbx_name}"),
+            &image_id,
+        ])
+        .spawn()
+        .map_err(LitterboxError::RunPodman)?;
+
+    child.wait().map_err(LitterboxError::RunPodman)?;
+    info!("Created container named {container_name}.");
+    Ok(())
+}
+
+pub fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
+    let mut child = Command::new("podman")
+        .args([
+            "start",
+            "--interactive",
+            "--attach",
+            &get_container_id(name)?,
+        ])
+        .spawn()
+        .map_err(LitterboxError::RunPodman)?;
+
+    child.wait().map_err(LitterboxError::RunPodman)?;
+    debug!("Distrobox finished.");
+    Ok(())
+}
+
+pub fn delete_distrobox(lbx_name: &str) -> Result<(), LitterboxError> {
+    // We check if it exists before promting the user
+    let container_id = get_container_id(lbx_name)?;
+
+    let should_delete = Confirm::new("Are you sure you want to delete this Litterbox?")
+        .with_default(false)
+        .with_help_message(
+            "This operation cannot be undone and will delete all data/state outside the home directory.",
+        )
+        .prompt();
+
+    match should_delete {
+        Ok(true) => {}
+        _ => {
+            println!("Okay, the Litterbox won't be deleted!");
+            return Ok(());
+        }
+    }
+
+    let mut child = Command::new("podman")
+        .args(["rm", &container_id])
+        .spawn()
+        .map_err(LitterboxError::RunPodman)?;
+
+    child.wait().map_err(LitterboxError::RunPodman)?;
+    info!("Container for Litterbox deleted!");
+
+    let image_id = get_image_id(lbx_name)?;
+
+    let mut child = Command::new("podman")
+        .args(["image", "rm", &image_id])
+        .spawn()
+        .map_err(LitterboxError::RunPodman)?;
+
+    child.wait().map_err(LitterboxError::RunPodman)?;
+    info!("Image for Litterbox deleted!");
+
+    // TODO: ask the user if they also want the home dir deleted
+    Ok(())
+}

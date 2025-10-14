@@ -169,9 +169,18 @@ enum KeyCommands {
         /// The name of the key
         name: String,
     },
+
+    /// Attach an existing key to a Litterbox
+    Attach {
+        /// The name of the key
+        key_name: String,
+
+        /// The name of the Litterbox
+        litterbox_name: String,
+    },
 }
 
-fn try_run() -> Result<(), LitterboxError> {
+fn run_menu() -> Result<(), LitterboxError> {
     let args = Args::parse();
     match args.command {
         Commands::Prepare { name } => {
@@ -185,7 +194,7 @@ fn try_run() -> Result<(), LitterboxError> {
             println!("Litterbox created!");
         }
         Commands::Enter { name } => {
-            enter_distrobox(&name)?;
+            enter_litterbox(&name)?;
             println!("Exited Litterbox...")
         }
         Commands::List => {
@@ -196,7 +205,7 @@ fn try_run() -> Result<(), LitterboxError> {
             println!("{table}");
         }
         Commands::Delete { name } => {
-            delete_distrobox(&name)?;
+            delete_litterbox(&name)?;
         }
         Commands::Keys(cmd) => process_key_cmd(cmd)?,
     }
@@ -215,6 +224,12 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
         KeyCommands::Delete { name } => {
             keys.delete(&name)?;
         }
+        KeyCommands::Attach {
+            key_name,
+            litterbox_name,
+        } => {
+            keys.attach(&key_name, &litterbox_name)?;
+        }
     }
     Ok(())
 }
@@ -222,7 +237,7 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
 fn main() {
     env_logger::init();
 
-    if let Err(e) = try_run() {
+    if let Err(e) = run_menu() {
         e.print();
     }
 }

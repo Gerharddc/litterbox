@@ -150,8 +150,14 @@ impl Keys {
         }
     }
 
+    fn key_mut(&mut self, key_name: &str) -> Option<&mut Key> {
+        self.keys.iter_mut().find(|key| key.name == key_name)
+    }
+
     pub fn generate(&mut self, key_name: &str) -> Result<(), LitterboxError> {
-        // FIXME: make sure a key with this name does not exist yet
+        if self.key_mut(key_name).is_some() {
+            return Err(LitterboxError::KeyAlreadyExists(key_name.to_owned()));
+        }
 
         let password = self.prompt_password()?;
         self.keys.push(Key::new(key_name, &password));
@@ -170,14 +176,38 @@ impl Keys {
             }
         });
 
-        if found {
-            self.save_to_file()?;
-            println!("Deleted key named {key_name}");
-        } else {
-            println!("Could not find key named {key_name}. Nothing deleted.")
+        if !found {
+            return Err(LitterboxError::KeyDoesNotExist(key_name.to_owned()));
         }
 
+        self.save_to_file()?;
+        println!("Deleted key named {key_name}");
         Ok(())
+    }
+
+    pub fn attach(&mut self, key_name: &str, litterbox_name: &str) -> Result<(), LitterboxError> {
+        match self.key_mut(key_name) {
+            Some(key) => {
+                if key
+                    .attached_litterboxes
+                    .iter()
+                    .find(|name| **name == litterbox_name)
+                    .is_some()
+                {
+                    return Err(LitterboxError::AlreadyAttachedToKey(
+                        key_name.to_owned(),
+                        litterbox_name.to_owned(),
+                    ));
+                }
+
+                key.attached_litterboxes.push(litterbox_name.to_owned());
+                self.save_to_file()?;
+
+                println!("Attached {litterbox_name} to {key_name}!");
+                Ok(())
+            }
+            None => Err(LitterboxError::KeyDoesNotExist(key_name.to_owned())),
+        }
     }
 }
 

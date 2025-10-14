@@ -22,6 +22,9 @@ pub enum LitterboxError {
     DockerfileAlreadyExists(PathBuf),
     PromptError(InquireError),
     FailedToSerialise(&'static str),
+    KeyAlreadyExists(String),
+    KeyDoesNotExist(String),
+    AlreadyAttachedToKey(String, String),
 }
 
 impl LitterboxError {
@@ -91,7 +94,18 @@ impl LitterboxError {
                 println!("Failed to retrieve valid input from user.");
             }
             LitterboxError::FailedToSerialise(name) => {
-                println!("Failed to serialise {name}");
+                println!("Failed to serialise {name}.");
+            }
+            LitterboxError::KeyAlreadyExists(name) => {
+                println!("Key named {name} already exists.")
+            }
+            LitterboxError::KeyDoesNotExist(name) => {
+                println!("Key named {name} does not exist.")
+            }
+            LitterboxError::AlreadyAttachedToKey(key_name, litterbox_name) => {
+                println!(
+                    "Litterbox named {litterbox_name} already attached to key named {key_name}."
+                )
             }
         }
     }

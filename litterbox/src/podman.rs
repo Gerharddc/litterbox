@@ -208,7 +208,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
     Ok(())
 }
 
-pub fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
+pub fn enter_litterbox(name: &str) -> Result<(), LitterboxError> {
     let mut child = Command::new("podman")
         .args([
             "start",
@@ -220,11 +220,11 @@ pub fn enter_distrobox(name: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::RunPodman)?;
 
     child.wait().map_err(LitterboxError::RunPodman)?;
-    debug!("Distrobox finished.");
+    debug!("Litterbox finished.");
     Ok(())
 }
 
-pub fn delete_distrobox(lbx_name: &str) -> Result<(), LitterboxError> {
+pub fn delete_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     // We check if it exists before promting the user
     let container_id = get_container_id(lbx_name)?;
 

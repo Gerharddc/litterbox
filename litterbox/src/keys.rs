@@ -1,5 +1,5 @@
 use argon2::Argon2;
-use inquire::Password;
+use inquire::{MultiSelect, Password};
 use russh::keys::{Algorithm, PrivateKey, pkcs8::encode_pkcs8_encrypted};
 use serde::{Deserialize, Serialize};
 use tabled::{Table, Tabled};
@@ -204,6 +204,28 @@ impl Keys {
                 self.save_to_file()?;
 
                 println!("Attached {litterbox_name} to {key_name}!");
+                Ok(())
+            }
+            None => Err(LitterboxError::KeyDoesNotExist(key_name.to_owned())),
+        }
+    }
+
+    pub fn detach(&mut self, key_name: &str) -> Result<(), LitterboxError> {
+        match self.key_mut(key_name) {
+            Some(key) => {
+                let to_remove = MultiSelect::new(
+                    "Select the Litterboxes that you want to detach:",
+                    key.attached_litterboxes.clone(),
+                )
+                .prompt()
+                .map_err(LitterboxError::PromptError)?;
+
+                key.attached_litterboxes
+                    .retain(|name| !to_remove.contains(name));
+
+                self.save_to_file()?;
+                println!("Detached {} Litterbox from {key_name}!", to_remove.len());
+                println!("N.B. running Litterboxes won't be affected until they are restarted!!");
                 Ok(())
             }
             None => Err(LitterboxError::KeyDoesNotExist(key_name.to_owned())),

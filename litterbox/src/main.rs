@@ -152,34 +152,6 @@ enum Commands {
     Keys(KeyCommands),
 }
 
-#[derive(Subcommand, Debug)]
-enum KeyCommands {
-    /// List all the keys are being managed
-    #[clap(visible_alias("ls"))]
-    List,
-
-    /// Generate a new random key
-    Generate {
-        /// The name of the key
-        name: String,
-    },
-
-    /// Delete an existing key
-    Delete {
-        /// The name of the key
-        name: String,
-    },
-
-    /// Attach an existing key to a Litterbox
-    Attach {
-        /// The name of the key
-        key_name: String,
-
-        /// The name of the Litterbox
-        litterbox_name: String,
-    },
-}
-
 fn run_menu() -> Result<(), LitterboxError> {
     let args = Args::parse();
     match args.command {
@@ -212,6 +184,40 @@ fn run_menu() -> Result<(), LitterboxError> {
     Ok(())
 }
 
+#[derive(Subcommand, Debug)]
+enum KeyCommands {
+    /// List all the keys are being managed
+    #[clap(visible_alias("ls"))]
+    List,
+
+    /// Generate a new random key
+    Generate {
+        /// The name of the key
+        name: String,
+    },
+
+    /// Delete an existing key
+    Delete {
+        /// The name of the key
+        name: String,
+    },
+
+    /// Attach an existing key to a Litterbox
+    Attach {
+        /// The name of the key
+        key_name: String,
+
+        /// The name of the Litterbox
+        litterbox_name: String,
+    },
+
+    /// Detach an attached Litterbox from a key
+    Detach {
+        /// The name of the key
+        key_name: String,
+    },
+}
+
 fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
     let mut keys = Keys::load()?;
     match cmd {
@@ -229,6 +235,9 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
             litterbox_name,
         } => {
             keys.attach(&key_name, &litterbox_name)?;
+        }
+        KeyCommands::Detach { key_name } => {
+            keys.detach(&key_name)?;
         }
     }
     Ok(())

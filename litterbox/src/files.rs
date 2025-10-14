@@ -12,7 +12,6 @@ pub fn path_relative_to_home(relative_path: &str) -> Result<PathBuf, LitterboxEr
     // TODO: maybe don't do the lossy conversion?
     let full_path = full_path.to_string_lossy().to_string();
     let full_path = PathBuf::from(full_path);
-
     Ok(full_path)
 }
 
@@ -31,7 +30,6 @@ pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {
         .map_err(|e| LitterboxError::DirUncreatable(e, output_dir.to_path_buf()))?;
 
     fs::write(path, contents).map_err(|e| LitterboxError::WriteFailed(e, path.to_path_buf()))?;
-
     Ok(())
 }
 

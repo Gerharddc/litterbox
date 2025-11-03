@@ -149,7 +149,7 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
         .spawn()
         .map_err(LitterboxError::RunPodman)?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?;
+    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
     info!("Built image named {image_name}.");
     Ok(())
 }
@@ -203,7 +203,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
         .spawn()
         .map_err(LitterboxError::RunPodman)?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?;
+    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
     info!("Created container named {container_name}.");
     Ok(())
 }
@@ -219,7 +219,7 @@ pub fn enter_litterbox(name: &str) -> Result<(), LitterboxError> {
         .spawn()
         .map_err(LitterboxError::RunPodman)?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?;
+    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
     debug!("Litterbox finished.");
     Ok(())
 }
@@ -248,7 +248,7 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
         .spawn()
         .map_err(LitterboxError::RunPodman)?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?;
+    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
     info!("Container for Litterbox deleted!");
 
     let image_id = get_image_id(lbx_name)?;
@@ -258,7 +258,7 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
         .spawn()
         .map_err(LitterboxError::RunPodman)?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?;
+    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
     info!("Image for Litterbox deleted!");
 
     // TODO: ask the user if they also want the home dir deleted

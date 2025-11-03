@@ -4,13 +4,18 @@ use log::info;
 use std::{env, fmt::Display, process::Output};
 use tabled::{Table, Tabled};
 
+mod devices;
 mod errors;
 mod files;
 mod keys;
 mod podman;
 
 use crate::{
-    errors::LitterboxError, files::dockerfile_path, files::write_file, keys::Keys, podman::*,
+    devices::attach_device,
+    errors::LitterboxError,
+    files::{dockerfile_path, write_file},
+    keys::Keys,
+    podman::*,
 };
 
 #[derive(Tabled)]
@@ -140,7 +145,7 @@ enum Commands {
         name: String,
     },
 
-    /// Delete an existing Litterbox.
+    /// Delete an existing Litterbox
     #[clap(visible_alias("del"), visible_alias("rm"))]
     Delete {
         /// The name of the Litterbox to delete
@@ -150,6 +155,16 @@ enum Commands {
     /// Manage SSH keys that can be exposed to Litterboxes
     #[command(subcommand)]
     Keys(KeyCommands),
+
+    /// Attach a device to a Litterbox (the device fille be created in the home directory)
+    #[clap(visible_alias("dev"))]
+    Device {
+        /// The name of the Litterbox to attach the device to
+        name: String,
+
+        /// The path of the device to be attached
+        path: String,
+    },
 }
 
 fn run_menu() -> Result<(), LitterboxError> {
@@ -180,6 +195,10 @@ fn run_menu() -> Result<(), LitterboxError> {
             delete_litterbox(&name)?;
         }
         Commands::Keys(cmd) => process_key_cmd(cmd)?,
+        Commands::Device { name, path } => {
+            let dest_path = attach_device(&name, &path)?;
+            println!("Device attached at {:#?}!", dest_path);
+        }
     }
     Ok(())
 }

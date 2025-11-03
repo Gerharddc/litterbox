@@ -23,6 +23,10 @@ pub fn keyfile_path() -> Result<PathBuf, LitterboxError> {
     path_relative_to_home("keys.ron")
 }
 
+pub fn lbx_home_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
+    path_relative_to_home(lbx_name)
+}
+
 pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {
     let output_dir = path.parent().expect("Path should have parent.");
 

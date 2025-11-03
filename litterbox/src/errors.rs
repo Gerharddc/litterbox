@@ -25,6 +25,8 @@ pub enum LitterboxError {
     KeyAlreadyExists(String),
     KeyDoesNotExist(String),
     AlreadyAttachedToKey(String, String),
+    Nix(nix::errno::Errno),
+    InvalidDevicePath(String),
 }
 
 impl LitterboxError {
@@ -106,6 +108,12 @@ impl LitterboxError {
                 println!(
                     "Litterbox named {litterbox_name} already attached to key named {key_name}."
                 )
+            }
+            LitterboxError::Nix(errno) => {
+                println!("Linux error: {:#?}", errno);
+            }
+            LitterboxError::InvalidDevicePath(path) => {
+                println!("The following device path is not valid: {:#?}", path);
             }
         }
     }

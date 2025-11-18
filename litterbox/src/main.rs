@@ -68,8 +68,8 @@ enum Template {
 impl Template {
     fn contents(&self) -> &'static str {
         match self {
-            Template::OpenSuseTumbleweed => include_str!("tumbleweed.Dockerfile"),
-            Template::UbuntuLts => include_str!("ubuntu-latest.Dockerfile"),
+            Template::OpenSuseTumbleweed => include_str!("../templates/tumbleweed.Dockerfile"),
+            Template::UbuntuLts => include_str!("../templates/ubuntu-latest.Dockerfile"),
         }
     }
 

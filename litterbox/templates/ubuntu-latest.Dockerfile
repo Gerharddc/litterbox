@@ -2,10 +2,13 @@ FROM ubuntu:latest
 
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN apt-get update && \
-    apt-get install -y sudo weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools
+    apt-get install -y sudo weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools curl
 
-# Install development toolchain (ADAPT TO YOUR OWN NEEDS)
-RUN apt-get install -y rustup clang cmake ninja-build g++
+# Install the fish shell for a nicer experience
+RUN apt-get install -y fish
+
+# Install development tools (ADAPT TO YOUR OWN NEEDS)
+RUN apt-get install -y rustup clang cmake ninja-build g++ gh
 
 ARG USER
 ARG PASSWORD
@@ -22,3 +25,8 @@ WORKDIR /home/$USER
 #
 # A benefit of not installing such things here is also that they don't
 # need to be re-installed when the container gets rebuilt.
+
+# Enter the fish shell by default
+ENV SHELL=fish
+RUN chsh -s /usr/bin/fish $USER
+CMD ["fish"]

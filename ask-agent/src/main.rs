@@ -1,4 +1,3 @@
-use async_tempfile::TempDir;
 use eframe::egui;
 use futures::Future;
 use russh::keys::*;
@@ -52,22 +51,19 @@ impl agent::server::Agent for AskAgent {
     }
 }
 
-async fn start_ssh_agent(da_sender: ConfReqSender) -> JoinHandle<Result<(), Error>> {
+async fn start_ssh_agent(
+    conf_req_sender: ConfReqSender,
+    agent_path: String,
+) -> JoinHandle<Result<(), Error>> {
     env_logger::try_init().unwrap_or(());
-
-    let dir = TempDir::new().await.unwrap();
-    let agent_path = dir.dir_path().join("agent");
-    println!("agent_path: {:#?}", agent_path);
 
     let agent_path_ = agent_path.clone();
     tokio::spawn(async move {
-        let _keep_dir_alive = dir; // We need a handle here other the dir gets dropped
-
         let listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),
             AskAgent {
-                conf_req_tx: da_sender,
+                conf_req_tx: conf_req_sender,
             },
         )
         .await
@@ -122,8 +118,13 @@ async fn main() {
         unistd::{ForkResult, fork},
     };
 
+    let mut args = std::env::args();
+    let socket_path = args
+        .nth(1)
+        .expect("Socket path should be passed as argument");
+
     let (conf_req_tx, mut conf_req_rx) = mpsc::channel(100);
-    start_ssh_agent(conf_req_tx).await;
+    start_ssh_agent(conf_req_tx, socket_path).await;
 
     while let Some((confirmation_msg, user_resp_tx)) = conf_req_rx.recv().await {
         match unsafe { fork() } {

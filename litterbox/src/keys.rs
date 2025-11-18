@@ -1,8 +1,11 @@
+use std::process::{Child, Command};
+
 use argon2::Argon2;
 use inquire::{MultiSelect, Password};
 use russh::keys::{Algorithm, PrivateKey, pkcs8::encode_pkcs8_encrypted};
 use serde::{Deserialize, Serialize};
 use tabled::{Table, Tabled};
+use tempdir::TempDir;
 
 use crate::{
     LitterboxError,
@@ -88,7 +91,6 @@ impl Keys {
 
     fn save_to_file(&self) -> Result<(), LitterboxError> {
         let path = keyfile_path()?;
-        // let contents = ron::ser::to_string_pretty(self, ron::ser::PrettyConfig::default())
         let contents = ron::ser::to_string(self).map_err(|e| {
             eprintln!("Serialise error: {:#?}", e);
             LitterboxError::FailedToSerialise("Keys")
@@ -231,6 +233,52 @@ impl Keys {
             None => Err(LitterboxError::KeyDoesNotExist(key_name.to_owned())),
         }
     }
+
+    pub fn start_server(&self, lbx_name: &str) -> Result<AskAgent, LitterboxError> {
+        use russh::keys::*;
+
+        let password = self.prompt_password()?;
+
+        let dir = TempDir::new("litterbox").unwrap();
+        let agent_path = dir.path().join("agent");
+        println!("agent_path: {:#?}", agent_path);
+
+        let keys = self
+            .keys
+            .iter()
+            .filter(|key| key.attached_litterboxes.iter().any(|name| name == lbx_name));
+
+        let child = Command::new("ask-agent")
+            .args([&agent_path])
+            .spawn()
+            .map_err(LitterboxError::RunPodman)?; // FIXME: different error name
+
+        let core = tokio::runtime::Runtime::new().unwrap();
+        core.block_on(async move {
+            let stream = tokio::net::UnixStream::connect(&agent_path).await?;
+            let mut client = agent::client::AgentClient::connect(stream);
+
+            for key in keys {
+                println!("Registering key: {}", key.name);
+
+                let secret = str::from_utf8(&key.encrypted_key).expect("Secret should be UTF8");
+                let decrypted = decode_secret_key(secret, Some(&password))
+                    .expect("Key should have been encrypted with user password.");
+
+                client.add_identity(&decrypted, &[]).await?;
+            }
+
+            Ok::<(), Error>(())
+        })
+        .unwrap(); // FIXME: error instead of unwrap
+
+        Ok(AskAgent { dir, child })
+    }
+}
+
+pub struct AskAgent {
+    dir: TempDir,
+    child: Child,
 }
 
 #[cfg(test)]

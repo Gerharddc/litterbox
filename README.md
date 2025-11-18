@@ -32,9 +32,11 @@ N.B. it is again emphasised that Litterbox does not come with any warranties or 
 
 Simply run the following commands:
 
-  curl -LO https://github.com/Gerharddc/litterbox/releases/latest/download/install-litterbox.run
-  sudo chmod +x install-litterbox.run
-  ./install-litterbox.run
+```
+curl -LO https://github.com/Gerharddc/litterbox/releases/latest/download/install-litterbox.run  
+sudo chmod +x install-litterbox.run  
+./install-litterbox.run
+```
 
 ## Usage
 

@@ -208,13 +208,18 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
     Ok(())
 }
 
-pub fn enter_litterbox(name: &str) -> Result<(), LitterboxError> {
+pub fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
+    let keys = crate::keys::Keys::load()?;
+
+    // We hold onto the agent to keep it alive
+    let _ask_agent = keys.start_server(lbx_name)?;
+
     let mut child = Command::new("podman")
         .args([
             "start",
             "--interactive",
             "--attach",
-            &get_container_id(name)?,
+            &get_container_id(lbx_name)?,
         ])
         .spawn()
         .map_err(LitterboxError::RunPodman)?;

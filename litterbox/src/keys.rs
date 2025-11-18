@@ -272,13 +272,23 @@ impl Keys {
         })
         .unwrap(); // FIXME: error instead of unwrap
 
-        Ok(AskAgent { dir, child })
+        Ok(AskAgent { _dir: dir, child })
     }
 }
 
 pub struct AskAgent {
-    dir: TempDir,
+    _dir: TempDir, // We need to hold onto the dir to keep it alive
     child: Child,
+}
+
+impl Drop for AskAgent {
+    fn drop(&mut self) {
+        println!("Killing SSH key server");
+
+        if let Err(e) = self.child.kill() {
+            println!("Failed to kill: {:#?}", e);
+        }
+    }
 }
 
 #[cfg(test)]

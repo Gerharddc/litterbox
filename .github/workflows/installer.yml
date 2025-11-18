@@ -1,4 +1,4 @@
-name: Build Self-Extracting Installer
+name: Build & Release Installer
 
 on:
   push:
@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      installer_path: ${{ steps.package.outputs.installer_path }}
 
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +33,22 @@ jobs:
         with:
           name: installer
           path: install-litterbox.run
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download built installer
+        uses: actions/download-artifact@v4
+        with:
+          name: installer
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: install-litterbox.run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -27,6 +27,8 @@ pub enum LitterboxError {
     AlreadyAttachedToKey(String, String),
     Nix(nix::errno::Errno),
     InvalidDevicePath(String),
+    ConnectSocket(io::Error),
+    RegisterKey(russh::keys::Error),
 }
 
 impl LitterboxError {
@@ -114,6 +116,15 @@ impl LitterboxError {
             }
             LitterboxError::InvalidDevicePath(path) => {
                 println!("The following device path is not valid: {:#?}", path);
+            }
+            LitterboxError::ConnectSocket(error) => {
+                println!("Failed to connect to socket: {:#?}", error);
+            }
+            LitterboxError::RegisterKey(error) => {
+                println!(
+                    "Failed to register SSH key with internal agent: {:#?}",
+                    error
+                );
             }
         }
     }

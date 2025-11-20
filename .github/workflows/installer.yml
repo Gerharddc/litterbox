@@ -20,7 +20,6 @@ jobs:
       - name: Package binaries into tar.gz
         run: |
           mkdir dist
-          cp target/release/ask-agent dist/
           cp target/release/litterbox dist/
           tar -czf payload.tar.gz -C dist .
 

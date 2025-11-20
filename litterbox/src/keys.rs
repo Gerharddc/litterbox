@@ -1,11 +1,8 @@
-use std::process::{Child, Command};
-
 use argon2::Argon2;
 use inquire::{MultiSelect, Password};
 use russh::keys::{Algorithm, PrivateKey, pkcs8::encode_pkcs8_encrypted};
 use serde::{Deserialize, Serialize};
 use tabled::{Table, Tabled};
-use tempdir::TempDir;
 
 use crate::{
     LitterboxError,
@@ -193,8 +190,7 @@ impl Keys {
                 if key
                     .attached_litterboxes
                     .iter()
-                    .find(|name| **name == litterbox_name)
-                    .is_some()
+                    .any(|name| *name == litterbox_name)
                 {
                     return Err(LitterboxError::AlreadyAttachedToKey(
                         key_name.to_owned(),
@@ -234,60 +230,45 @@ impl Keys {
         }
     }
 
-    pub fn start_server(&self, lbx_name: &str) -> Result<AskAgent, LitterboxError> {
+    pub async fn start_server(&self, lbx_name: &str) -> Result<AskAgent, LitterboxError> {
         use russh::keys::*;
 
+        let agent_path = crate::agent::start_agent().await;
         let password = self.prompt_password()?;
-
-        let dir = TempDir::new("litterbox").unwrap();
-        let agent_path = dir.path().join("agent");
-        println!("agent_path: {:#?}", agent_path);
-
         let keys = self
             .keys
             .iter()
             .filter(|key| key.attached_litterboxes.iter().any(|name| name == lbx_name));
 
-        let child = Command::new("ask-agent")
-            .args([&agent_path])
-            .spawn()
-            .map_err(LitterboxError::RunPodman)?; // FIXME: different error name
+        let stream = tokio::net::UnixStream::connect(&agent_path)
+            .await
+            .map_err(LitterboxError::ConnectSocket)?;
+        let mut client = agent::client::AgentClient::connect(stream);
 
-        let core = tokio::runtime::Runtime::new().unwrap();
-        core.block_on(async move {
-            let stream = tokio::net::UnixStream::connect(&agent_path).await?;
-            let mut client = agent::client::AgentClient::connect(stream);
+        for key in keys {
+            println!("Registering key: {}", key.name);
 
-            for key in keys {
-                println!("Registering key: {}", key.name);
+            let secret = unsafe { str::from_utf8_unchecked(&key.encrypted_key) };
+            let decrypted = decode_secret_key(secret, Some(&password))
+                .expect("Key should have been encrypted with user password.");
 
-                let secret = str::from_utf8(&key.encrypted_key).expect("Secret should be UTF8");
-                let decrypted = decode_secret_key(secret, Some(&password))
-                    .expect("Key should have been encrypted with user password.");
+            client
+                .add_identity(&decrypted, &[])
+                .await
+                .map_err(LitterboxError::RegisterKey)?;
+        }
 
-                client.add_identity(&decrypted, &[]).await?;
-            }
-
-            Ok::<(), Error>(())
-        })
-        .unwrap(); // FIXME: error instead of unwrap
-
-        Ok(AskAgent { _dir: dir, child })
+        Ok(AskAgent {})
     }
 }
 
-pub struct AskAgent {
-    _dir: TempDir, // We need to hold onto the dir to keep it alive
-    child: Child,
-}
+pub struct AskAgent {}
 
 impl Drop for AskAgent {
     fn drop(&mut self) {
         println!("Killing SSH key server");
 
-        if let Err(e) = self.child.kill() {
-            println!("Failed to kill: {:#?}", e);
-        }
+        // FIXME: implement if needed
     }
 }
 

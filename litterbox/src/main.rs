@@ -4,6 +4,7 @@ use log::info;
 use std::{env, fmt::Display, process::Output};
 use tabled::{Table, Tabled};
 
+mod agent;
 mod devices;
 mod errors;
 mod files;
@@ -11,6 +12,7 @@ mod keys;
 mod podman;
 
 use crate::{
+    agent::prompt_confirmation,
     devices::attach_device,
     errors::LitterboxError,
     files::{dockerfile_path, write_file},
@@ -165,9 +167,15 @@ enum Commands {
         /// The path of the device to be attached
         path: String,
     },
+
+    /// Ask the user to confirm a request
+    Confirm {
+        // What the user needs to confirm
+        message: String,
+    },
 }
 
-fn run_menu() -> Result<(), LitterboxError> {
+async fn run_menu() -> Result<(), LitterboxError> {
     let args = Args::parse();
     match args.command {
         Commands::Prepare { name } => {
@@ -181,7 +189,7 @@ fn run_menu() -> Result<(), LitterboxError> {
             println!("Litterbox created!");
         }
         Commands::Enter { name } => {
-            enter_litterbox(&name)?;
+            enter_litterbox(&name).await?;
             println!("Exited Litterbox...")
         }
         Commands::List => {
@@ -198,6 +206,9 @@ fn run_menu() -> Result<(), LitterboxError> {
         Commands::Device { name, path } => {
             let dest_path = attach_device(&name, &path)?;
             println!("Device attached at {:#?}!", dest_path);
+        }
+        Commands::Confirm { message } => {
+            prompt_confirmation(&message);
         }
     }
     Ok(())
@@ -262,10 +273,11 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
 
-    if let Err(e) = run_menu() {
+    if let Err(e) = run_menu().await {
         e.print();
     }
 }

@@ -208,11 +208,11 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
     Ok(())
 }
 
-pub fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
+pub async fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let keys = crate::keys::Keys::load()?;
 
     // We hold onto the agent to keep it alive
-    let _ask_agent = keys.start_server(lbx_name)?;
+    let _ask_agent = keys.start_server(lbx_name).await?;
 
     let mut child = Command::new("podman")
         .args([

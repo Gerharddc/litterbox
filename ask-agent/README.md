@@ -1,1 +1,0 @@
-$SSH_AUTH_SOCK

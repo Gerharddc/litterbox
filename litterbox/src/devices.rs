@@ -1,7 +1,7 @@
 use log::{debug, info};
 use nix::sys::stat::{SFlag, major, minor, stat};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::{errors::LitterboxError, files::lbx_home_path};
@@ -10,7 +10,7 @@ fn mknod(
     major_num: u64,
     minor_num: u64,
     dev_type: &str,
-    path: &PathBuf,
+    path: &Path,
 ) -> Result<(), LitterboxError> {
     println!(
         "Root permissions are required to create a device node. Please enter your password if prompted."

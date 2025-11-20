@@ -1,7 +1,7 @@
 # Litterbox
 
 <p align="center">
-  <img src="ask-agent/assets/cat.svg" alt="Centered SVG" width="200"/>
+  <img src="litterbox/assets/cat.svg" alt="Centered SVG" width="200"/>
 </p>
 
 [![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml)

@@ -18,6 +18,9 @@ ron = "0.12"
 argon2 = "0.5"
 env_logger = "0.11.8"
 log = "0.4.28"
-tempdir = "0.3.7"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["net"] }
+eframe = "0.33"
+egui_extras = { version="0.33", features=["svg"] }
+futures = "0.3"
+async-tempfile = "0.7.0"

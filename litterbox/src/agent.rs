@@ -3,17 +3,14 @@ use futures::Future;
 use russh::keys::*;
 use std::path::PathBuf;
 use tokio::process::Command;
-use tokio::sync::{mpsc, oneshot};
 
 use crate::errors::LitterboxError;
 use crate::extract_stdout;
 use crate::files::lbx_ssh_path;
 
-type ConfReqSender = mpsc::Sender<(&'static str, oneshot::Sender<bool>)>;
-
 #[derive(Clone)]
 struct AskAgent {
-    conf_req_tx: ConfReqSender,
+    litterbox_path: String,
 }
 
 impl agent::server::Agent for AskAgent {
@@ -28,7 +25,7 @@ impl agent::server::Agent for AskAgent {
     async fn confirm_request(&self, msg: agent::server::MessageType) -> bool {
         use agent::server::MessageType;
 
-        let user_req_msg = match msg {
+        let confirmation_msg = match msg {
             MessageType::RequestKeys => "RequestKeys",
             MessageType::AddKeys => "AddKeys",
             MessageType::RemoveKeys => "RemoveKeys",
@@ -38,18 +35,21 @@ impl agent::server::Agent for AskAgent {
             MessageType::Unlock => "Unlock",
         };
 
-        let (user_resp_tx, user_resp_rx) = oneshot::channel();
+        let output = Command::new(self.litterbox_path.clone())
+            .args(["confirm", confirmation_msg])
+            .output()
+            .await
+            .expect("Litterbox should return valid output to itself.");
 
-        match self.conf_req_tx.send((user_req_msg, user_resp_tx)).await {
-            Ok(_) => match user_resp_rx.await {
-                Ok(user_resp) => user_resp,
-                Err(e) => {
-                    println!("Error receiving user response: {:#?}", e);
-                    false
-                }
-            },
-            Err(e) => {
-                println!("Error sending user confirmation request: {:#?}", e);
+        let stdout =
+            extract_stdout(&output).expect("Litterbox should return valid output to itself.");
+
+        // We ignore the last character which will be a newline
+        match &stdout[..(stdout.len() - 1)] {
+            USER_ACCEPTED => true,
+            USER_DECLINED => false,
+            _other => {
+                log::error!("Unexpected confirmation response: {}", _other);
                 false
             }
         }
@@ -101,8 +101,6 @@ pub async fn start_agent(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
     let mut args = std::env::args();
     let litterbox_path = args.next().expect("Binary path should be defined.");
 
-    let (conf_req_tx, mut conf_req_rx) = mpsc::channel(100);
-
     let agent_path = lbx_ssh_path(lbx_name)?;
     let agent_path_ = agent_path.clone();
 
@@ -112,39 +110,9 @@ pub async fn start_agent(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
         let listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),
-            AskAgent { conf_req_tx },
+            AskAgent { litterbox_path },
         )
         .await
-    });
-
-    // FIXME: just combine the two tasks!
-    tokio::task::spawn(async move {
-        log::debug!("Starting task to listen for confirmation requests");
-
-        while let Some((confirmation_msg, user_resp_tx)) = conf_req_rx.recv().await {
-            let output = Command::new(litterbox_path.clone())
-                .args(["confirm", confirmation_msg])
-                .output()
-                .await
-                .expect("Litterbox should return valid output to itself.");
-
-            let stdout =
-                extract_stdout(&output).expect("Litterbox should return valid output to itself.");
-
-            // We ignore the last character which will be a newline
-            let user_accepted = match &stdout[..(stdout.len() - 1)] {
-                USER_ACCEPTED => true,
-                USER_DECLINED => false,
-                _other => {
-                    log::error!("Unexpected confirmation response: {}", _other);
-                    false
-                }
-            };
-
-            if let Err(e) = user_resp_tx.send(user_accepted) {
-                log::error!("Error sending user response to client: {:#?}.", e);
-            }
-        }
     });
 
     Ok(agent_path)

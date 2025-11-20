@@ -62,6 +62,11 @@ impl SshSockFile {
         Ok(Self { path })
     }
 
+    pub fn create_empty_file(&mut self) {
+        // FIXME: return error instead of panic
+        fs::File::create(self.path()).expect("Could not create empty SSH socket file.");
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -69,8 +74,12 @@ impl SshSockFile {
 
 impl Drop for SshSockFile {
     fn drop(&mut self) {
-        if let Err(e) = fs::remove_file(self.path.clone()) {
-            log::error!("Failed to remove {:#?}, error: {:#?}", self.path, e);
+        if let Ok(true) = fs::exists(self.path.clone()) {
+            if let Err(e) = fs::remove_file(self.path.clone()) {
+                log::error!("Failed to remove {:#?}, error: {:#?}", self.path, e);
+            }
+        } else {
+            log::error!("No SSH socket file to clean up: {:#?}", self.path());
         }
     }
 }

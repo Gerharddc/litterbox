@@ -173,7 +173,8 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
     fs::create_dir_all(&litterbox_home)
         .map_err(|e| LitterboxError::DirUncreatable(e, litterbox_home.clone()))?;
 
-    let ssh_sock = SshSockFile::new(lbx_name)?;
+    let mut ssh_sock = SshSockFile::new(lbx_name)?;
+    ssh_sock.create_empty_file();
     let ssh_sock_path = ssh_sock
         .path()
         .to_str()

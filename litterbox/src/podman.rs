@@ -6,7 +6,7 @@ use std::{fs, process::Command};
 use crate::{
     errors::LitterboxError,
     extract_stdout,
-    files::{dockerfile_path, lbx_ssh_path, path_relative_to_home},
+    files::{SshSockFile, dockerfile_path, path_relative_to_home},
     gen_random_name, get_env, prepare_litterbox,
 };
 
@@ -113,7 +113,7 @@ pub fn get_image_id(lbx_name: &str) -> Result<String, LitterboxError> {
 
 pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     match get_image_id(lbx_name) {
-        Ok(id) => return Err(LitterboxError::ImageAlreadyExists(id)),
+        Ok(id) => return Err(LitterboxError::ImageAlreadyExists(id)), // TODO: instead prompt user how to proceed
         Err(LitterboxError::NoImageForName) => {}
         Err(other) => return Err(other),
     };
@@ -127,7 +127,8 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
         prepare_litterbox(lbx_name)?;
     }
 
-    let password = Password::new("Password:")
+    println!("Please pick a password for the user inside the Litterbox.");
+    let password = Password::new("User password:")
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()
         .map_err(LitterboxError::PromptError)?;
@@ -172,8 +173,9 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
     fs::create_dir_all(&litterbox_home)
         .map_err(|e| LitterboxError::DirUncreatable(e, litterbox_home.clone()))?;
 
-    let ssh_sock = lbx_ssh_path(lbx_name)?;
-    let ssh_sock = ssh_sock
+    let ssh_sock = SshSockFile::new(lbx_name)?;
+    let ssh_sock_path = ssh_sock
+        .path()
         .to_str()
         .expect("SSH socket path should be valid string");
 
@@ -192,7 +194,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
             "-e",
             "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
             "-v",
-            &format!("{ssh_sock}:/tmp/ssh-agent.sock"),
+            &format!("{ssh_sock_path}:/tmp/ssh-agent.sock"),
             "-e",
             &format!("WAYLAND_DISPLAY={wayland_display}"),
             "-e",

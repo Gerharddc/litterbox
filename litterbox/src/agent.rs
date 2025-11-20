@@ -8,7 +8,7 @@ use tokio::process::Command;
 
 use crate::errors::LitterboxError;
 use crate::extract_stdout;
-use crate::files::lbx_ssh_path;
+use crate::files::SshSockFile;
 
 #[derive(Clone)]
 struct AskAgent {
@@ -111,13 +111,13 @@ pub async fn start_ssh_agent(
     let mut args = std::env::args();
     let litterbox_path = args.next().expect("Binary path should be defined.");
 
-    let agent_path = lbx_ssh_path(lbx_name)?;
-    let agent_path_ = agent_path.clone();
+    let ssh_sock = SshSockFile::new(lbx_name)?;
+    let agent_path = ssh_sock.path().to_owned();
 
     tokio::spawn(async move {
         log::debug!("Starting SSH agent server task");
 
-        let listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
+        let listener = tokio::net::UnixListener::bind(ssh_sock.path()).unwrap();
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),
             AskAgent {

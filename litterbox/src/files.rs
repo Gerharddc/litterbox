@@ -27,10 +27,6 @@ pub fn lbx_home_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
     path_relative_to_home(lbx_name)
 }
 
-pub fn lbx_ssh_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
-    path_relative_to_home(&format!("{lbx_name}-ssh.sock"))
-}
-
 pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {
     let output_dir = path.parent().expect("Path should have parent.");
 
@@ -43,4 +39,38 @@ pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {
 
 pub fn read_file(path: &Path) -> Result<String, LitterboxError> {
     fs::read_to_string(path).map_err(|e| LitterboxError::ReadFailed(e, path.to_path_buf()))
+}
+
+pub struct SshSockFile {
+    path: PathBuf,
+}
+
+impl SshSockFile {
+    pub fn new(lbx_name: &str) -> Result<Self, LitterboxError> {
+        let path = path_relative_to_home(&format!(".ssh/{lbx_name}.sock"))?;
+
+        if fs::exists(path.clone()).map_err(|e| LitterboxError::ExistsFailed(e, path.clone()))? {
+            log::warn!("Deleting old SSH socket: {:#?}", path);
+            fs::remove_file(path.clone())
+                .map_err(|e| LitterboxError::RemoveFailed(e, path.clone()))?;
+        } else {
+            let ssh_dir = path.parent().expect("SSH path should have parent.");
+            fs::create_dir_all(ssh_dir)
+                .map_err(|e| LitterboxError::DirUncreatable(e, ssh_dir.to_path_buf()))?;
+        }
+
+        Ok(Self { path })
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for SshSockFile {
+    fn drop(&mut self) {
+        if let Err(e) = fs::remove_file(self.path.clone()) {
+            log::error!("Failed to remove {:#?}, error: {:#?}", self.path, e);
+        }
+    }
 }

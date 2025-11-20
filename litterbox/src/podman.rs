@@ -1,13 +1,14 @@
+use inquire::{Confirm, Password};
+use log::{debug, info};
+use serde::Deserialize;
+use std::{fs, process::Command};
+
 use crate::{
     errors::LitterboxError,
     extract_stdout,
     files::{dockerfile_path, lbx_ssh_path, path_relative_to_home},
     gen_random_name, get_env, prepare_litterbox,
 };
-use inquire::{Confirm, Password};
-use log::{debug, info};
-use serde::Deserialize;
-use std::{fs, process::Command};
 
 #[derive(Deserialize, Debug)]
 pub struct LitterboxLabels {
@@ -189,7 +190,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
             &format!("lbx-{lbx_name}"),
             "--security-opt=label=disable", // FIXME: use udica to make better rules instead
             "-e",
-            &format!("SSH_AUTH_SOCK=/tmp/ssh-agent.sock"),
+            "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
             "-v",
             &format!("{ssh_sock}:/tmp/ssh-agent.sock"),
             "-e",
@@ -219,9 +220,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
 
 pub async fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let keys = crate::keys::Keys::load()?;
-
-    // We hold onto the agent to keep it alive
-    let _ask_agent = keys.start_server(lbx_name).await?;
+    keys.start_ssh_server(lbx_name).await?;
 
     let mut child = Command::new("podman")
         .args([

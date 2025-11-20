@@ -2,6 +2,8 @@ use eframe::egui;
 use futures::Future;
 use russh::keys::*;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::process::Command;
 
 use crate::errors::LitterboxError;
@@ -11,6 +13,7 @@ use crate::files::lbx_ssh_path;
 #[derive(Clone)]
 struct AskAgent {
     litterbox_path: String,
+    agent_locked: Arc<AtomicBool>,
 }
 
 impl agent::server::Agent for AskAgent {
@@ -24,6 +27,10 @@ impl agent::server::Agent for AskAgent {
 
     async fn confirm_request(&self, msg: agent::server::MessageType) -> bool {
         use agent::server::MessageType;
+
+        if !self.agent_locked.load(Ordering::SeqCst) {
+            return true;
+        }
 
         let confirmation_msg = match msg {
             MessageType::RequestKeys => "RequestKeys",
@@ -97,7 +104,10 @@ impl eframe::App for ConfirmationDialog<'_> {
 const USER_ACCEPTED: &str = "accepted";
 const USER_DECLINED: &str = "declined";
 
-pub async fn start_agent(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
+pub async fn start_ssh_agent(
+    lbx_name: &str,
+    agent_locked: Arc<AtomicBool>,
+) -> Result<PathBuf, LitterboxError> {
     let mut args = std::env::args();
     let litterbox_path = args.next().expect("Binary path should be defined.");
 
@@ -110,7 +120,10 @@ pub async fn start_agent(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
         let listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),
-            AskAgent { litterbox_path },
+            AskAgent {
+                litterbox_path,
+                agent_locked,
+            },
         )
         .await
     });

@@ -2,10 +2,15 @@ use argon2::Argon2;
 use inquire::{MultiSelect, Password};
 use russh::keys::{Algorithm, PrivateKey, pkcs8::decode_pkcs8, pkcs8::encode_pkcs8_encrypted};
 use serde::{Deserialize, Serialize};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use tabled::{Table, Tabled};
 
 use crate::{
     LitterboxError,
+    agent::start_ssh_agent,
     files::{keyfile_path, read_file, write_file},
 };
 
@@ -228,10 +233,12 @@ impl Keys {
         }
     }
 
-    pub async fn start_server(&self, lbx_name: &str) -> Result<AskAgent, LitterboxError> {
-        let agent_path = crate::agent::start_agent(lbx_name).await?;
+    pub async fn start_ssh_server(&self, lbx_name: &str) -> Result<(), LitterboxError> {
+        let agent_locked = Arc::new(AtomicBool::new(false));
+        let agent_path = start_ssh_agent(lbx_name, agent_locked.clone()).await?;
+
         let keys_password = self.prompt_password()?;
-        let keys = self
+        let lbx_keys = self
             .keys
             .iter()
             .filter(|key| key.attached_litterboxes.iter().any(|name| name == lbx_name));
@@ -241,7 +248,7 @@ impl Keys {
             .map_err(LitterboxError::ConnectSocket)?;
         let mut client = russh::keys::agent::client::AgentClient::connect(stream);
 
-        for key in keys {
+        for key in lbx_keys {
             println!("Registering key: {}", key.name);
 
             let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
@@ -253,17 +260,10 @@ impl Keys {
                 .map_err(LitterboxError::RegisterKey)?;
         }
 
-        Ok(AskAgent {})
-    }
-}
+        // Ensure the agent will now start prompting for authorization
+        agent_locked.store(true, Ordering::SeqCst);
 
-pub struct AskAgent {}
-
-impl Drop for AskAgent {
-    fn drop(&mut self) {
-        println!("Killing SSH key server");
-
-        // FIXME: implement if needed
+        Ok(())
     }
 }
 

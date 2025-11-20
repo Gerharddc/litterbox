@@ -1,6 +1,6 @@
 use argon2::Argon2;
 use inquire::{MultiSelect, Password};
-use russh::keys::{Algorithm, PrivateKey, pkcs8::encode_pkcs8_encrypted};
+use russh::keys::{Algorithm, PrivateKey, pkcs8::decode_pkcs8, pkcs8::encode_pkcs8_encrypted};
 use serde::{Deserialize, Serialize};
 use tabled::{Table, Tabled};
 
@@ -11,9 +11,7 @@ use crate::{
 
 fn gen_key() -> PrivateKey {
     use russh::keys::signature::rand_core::OsRng;
-
-    // FIXME: return an error instead of unwrapping
-    PrivateKey::random(&mut OsRng, Algorithm::Ed25519).expect("Algorithm should be known.")
+    PrivateKey::random(&mut OsRng, Algorithm::Ed25519).expect("Ed25519 should be supported.")
 }
 
 fn hash_password(password: &str) -> String {
@@ -231,8 +229,6 @@ impl Keys {
     }
 
     pub async fn start_server(&self, lbx_name: &str) -> Result<AskAgent, LitterboxError> {
-        use russh::keys::*;
-
         let agent_path = crate::agent::start_agent().await;
         let password = self.prompt_password()?;
         let keys = self
@@ -243,13 +239,12 @@ impl Keys {
         let stream = tokio::net::UnixStream::connect(&agent_path)
             .await
             .map_err(LitterboxError::ConnectSocket)?;
-        let mut client = agent::client::AgentClient::connect(stream);
+        let mut client = russh::keys::agent::client::AgentClient::connect(stream);
 
         for key in keys {
             println!("Registering key: {}", key.name);
 
-            let secret = unsafe { str::from_utf8_unchecked(&key.encrypted_key) };
-            let decrypted = decode_secret_key(secret, Some(&password))
+            let decrypted = decode_pkcs8(&key.encrypted_key, Some(password.as_bytes()))
                 .expect("Key should have been encrypted with user password.");
 
             client
@@ -284,5 +279,19 @@ mod tests {
 
         assert!(check_password(password, &hash));
         assert!(!check_password("wrong_pass", &hash));
+    }
+
+    #[test]
+    fn can_encrypt_and_decrypt_password() {
+        let password = "SomePassword";
+
+        let original_key = gen_key();
+
+        let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &original_key).unwrap();
+
+        let decrypted_key = decode_pkcs8(&encrypted_key, Some(password.as_bytes()))
+            .expect("Key should have been encrypted with user password.");
+
+        assert_eq!(decrypted_key, original_key);
     }
 }

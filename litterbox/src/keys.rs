@@ -229,8 +229,8 @@ impl Keys {
     }
 
     pub async fn start_server(&self, lbx_name: &str) -> Result<AskAgent, LitterboxError> {
-        let agent_path = crate::agent::start_agent().await;
-        let password = self.prompt_password()?;
+        let agent_path = crate::agent::start_agent(lbx_name).await?;
+        let keys_password = self.prompt_password()?;
         let keys = self
             .keys
             .iter()
@@ -244,7 +244,7 @@ impl Keys {
         for key in keys {
             println!("Registering key: {}", key.name);
 
-            let decrypted = decode_pkcs8(&key.encrypted_key, Some(password.as_bytes()))
+            let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
                 .expect("Key should have been encrypted with user password.");
 
             client

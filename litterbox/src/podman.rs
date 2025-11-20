@@ -1,7 +1,7 @@
 use crate::{
     errors::LitterboxError,
     extract_stdout,
-    files::{dockerfile_path, path_relative_to_home},
+    files::{dockerfile_path, lbx_ssh_path, path_relative_to_home},
     gen_random_name, get_env, prepare_litterbox,
 };
 use inquire::{Confirm, Password};
@@ -171,6 +171,11 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
     fs::create_dir_all(&litterbox_home)
         .map_err(|e| LitterboxError::DirUncreatable(e, litterbox_home.clone()))?;
 
+    let ssh_sock = lbx_ssh_path(lbx_name)?;
+    let ssh_sock = ssh_sock
+        .to_str()
+        .expect("SSH socket path should be valid string");
+
     let mut child = Command::new("podman")
         .args([
             "create",
@@ -183,6 +188,10 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
             "--hostname",
             &format!("lbx-{lbx_name}"),
             "--security-opt=label=disable", // FIXME: use udica to make better rules instead
+            "-e",
+            &format!("SSH_AUTH_SOCK=/tmp/ssh-agent.sock"),
+            "-v",
+            &format!("{ssh_sock}:/tmp/ssh-agent.sock"),
             "-e",
             &format!("WAYLAND_DISPLAY={wayland_display}"),
             "-e",

@@ -1,4 +1,3 @@
-use async_tempfile::TempDir;
 use eframe::egui;
 use futures::Future;
 use russh::keys::*;
@@ -6,7 +5,9 @@ use std::path::PathBuf;
 use tokio::process::Command;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::errors::LitterboxError;
 use crate::extract_stdout;
+use crate::files::lbx_ssh_path;
 
 type ConfReqSender = mpsc::Sender<(&'static str, oneshot::Sender<bool>)>;
 
@@ -96,20 +97,17 @@ impl eframe::App for ConfirmationDialog<'_> {
 const USER_ACCEPTED: &str = "accepted";
 const USER_DECLINED: &str = "declined";
 
-pub async fn start_agent() -> PathBuf {
+pub async fn start_agent(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
     let mut args = std::env::args();
     let litterbox_path = args.next().expect("Binary path should be defined.");
 
-    let dir = TempDir::new().await.unwrap();
-    let agent_path = dir.dir_path().join("agent");
-    println!("agent_path: {:#?}", agent_path);
-
     let (conf_req_tx, mut conf_req_rx) = mpsc::channel(100);
 
+    let agent_path = lbx_ssh_path(lbx_name)?;
     let agent_path_ = agent_path.clone();
+
     tokio::spawn(async move {
-        // We do this to keep the directory alive
-        let _dir = dir;
+        log::debug!("Starting SSH agent server task");
 
         let listener = tokio::net::UnixListener::bind(&agent_path_).unwrap();
         russh::keys::agent::server::serve(
@@ -119,7 +117,10 @@ pub async fn start_agent() -> PathBuf {
         .await
     });
 
+    // FIXME: just combine the two tasks!
     tokio::task::spawn(async move {
+        log::debug!("Starting task to listen for confirmation requests");
+
         while let Some((confirmation_msg, user_resp_tx)) = conf_req_rx.recv().await {
             let output = Command::new(litterbox_path.clone())
                 .args(["confirm", confirmation_msg])
@@ -146,7 +147,7 @@ pub async fn start_agent() -> PathBuf {
         }
     });
 
-    agent_path
+    Ok(agent_path)
 }
 
 pub fn prompt_confirmation(confirmation_msg: &str) {

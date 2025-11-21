@@ -16,6 +16,7 @@ pub enum LitterboxError {
     ReadFailed(io::Error, PathBuf),
     ExistsFailed(io::Error, PathBuf),
     RemoveFailed(io::Error, PathBuf),
+    CreateFailed(io::Error, PathBuf),
     NoContainerForName,
     MultipleContainersForName,
     ContainerAlreadyExists(String),
@@ -84,6 +85,10 @@ impl LitterboxError {
             LitterboxError::RemoveFailed(error, path) => {
                 error!("{:#?}", error);
                 eprintln!("Could not remove file: {}.", path.display());
+            }
+            LitterboxError::CreateFailed(error, path) => {
+                error!("{:#?}", error);
+                eprintln!("Could not create file: {}.", path.display());
             }
             LitterboxError::NoContainerForName => {
                 eprintln!("A container with the specified Litterbox name could not be found.");

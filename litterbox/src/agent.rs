@@ -111,7 +111,7 @@ pub async fn start_ssh_agent(
     let mut args = std::env::args();
     let litterbox_path = args.next().expect("Binary path should be defined.");
 
-    let ssh_sock = SshSockFile::new(lbx_name)?;
+    let ssh_sock = SshSockFile::new(lbx_name, false)?;
     let agent_path = ssh_sock.path().to_owned();
 
     tokio::spawn(async move {

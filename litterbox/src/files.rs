@@ -46,25 +46,25 @@ pub struct SshSockFile {
 }
 
 impl SshSockFile {
-    pub fn new(lbx_name: &str) -> Result<Self, LitterboxError> {
+    pub fn new(lbx_name: &str, create_empty_placeholder: bool) -> Result<Self, LitterboxError> {
         let path = path_relative_to_home(&format!(".ssh/{lbx_name}.sock"))?;
+        let path_ref = &path;
 
-        if fs::exists(path.clone()).map_err(|e| LitterboxError::ExistsFailed(e, path.clone()))? {
-            log::warn!("Deleting old SSH socket: {:#?}", path);
-            fs::remove_file(path.clone())
-                .map_err(|e| LitterboxError::RemoveFailed(e, path.clone()))?;
+        if fs::exists(path_ref).map_err(|e| LitterboxError::ExistsFailed(e, path.clone()))? {
+            log::warn!("Deleting old SSH socket: {:#?}", path_ref);
+            fs::remove_file(path_ref).map_err(|e| LitterboxError::RemoveFailed(e, path.clone()))?;
         } else {
-            let ssh_dir = path.parent().expect("SSH path should have parent.");
+            let ssh_dir = path_ref.parent().expect("SSH path should have parent.");
             fs::create_dir_all(ssh_dir)
                 .map_err(|e| LitterboxError::DirUncreatable(e, ssh_dir.to_path_buf()))?;
+
+            if create_empty_placeholder {
+                fs::File::create(path_ref)
+                    .map_err(|e| LitterboxError::CreateFailed(e, ssh_dir.to_path_buf()))?;
+            }
         }
 
         Ok(Self { path })
-    }
-
-    pub fn create_empty_file(&mut self) {
-        // FIXME: return error instead of panic
-        fs::File::create(self.path()).expect("Could not create empty SSH socket file.");
     }
 
     pub fn path(&self) -> &Path {

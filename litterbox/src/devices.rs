@@ -30,13 +30,12 @@ fn mknod(
     let res = child
         .wait()
         .map_err(|e| LitterboxError::RunCommand(e, "mknod"))?;
-    debug!("res: {:#?}", res);
 
-    // FIXME: create dedicated error
     if !res.success() {
-        panic!("{}", res.to_string());
+        Err(LitterboxError::CommandFailed(res, "mknod"))
+    } else {
+        Ok(())
     }
-    Ok(())
 }
 
 pub fn attach_device(lbx_name: &str, device_path: &str) -> Result<PathBuf, LitterboxError> {

@@ -12,6 +12,7 @@ use crate::files::SshSockFile;
 
 #[derive(Clone)]
 struct AskAgent {
+    lbx_name: String,
     litterbox_path: String,
     agent_locked: Arc<AtomicBool>,
 }
@@ -43,7 +44,13 @@ impl agent::server::Agent for AskAgent {
         };
 
         let output = Command::new(self.litterbox_path.clone())
-            .args(["confirm", confirmation_msg])
+            .args([
+                "confirm",
+                "--message",
+                confirmation_msg,
+                "--lbx-name",
+                &self.lbx_name,
+            ])
             .output()
             .await
             .expect("Litterbox should return valid output to itself.");
@@ -65,16 +72,8 @@ impl agent::server::Agent for AskAgent {
 
 struct ConfirmationDialog<'a> {
     user_response: &'a mut bool,
-    user_req_msg: &'a str,
-}
-
-impl<'a> ConfirmationDialog<'a> {
-    fn new(user_response: &'a mut bool, user_req_msg: &'a str) -> Self {
-        Self {
-            user_response,
-            user_req_msg,
-        }
-    }
+    confirmation_msg: &'a str,
+    lbx_name: &'a str,
 }
 
 impl eframe::App for ConfirmationDialog<'_> {
@@ -84,7 +83,8 @@ impl eframe::App for ConfirmationDialog<'_> {
 
             ui.add(egui::Image::new(egui::include_image!("../assets/cat.svg")).max_width(400.0));
 
-            ui.label(self.user_req_msg);
+            ui.label(format!("Request: {}", self.confirmation_msg));
+            ui.label(format!("From Litterbox: {}", self.lbx_name));
 
             ui.horizontal(|ui| {
                 if ui.button("Yes").clicked() {
@@ -114,6 +114,7 @@ pub async fn start_ssh_agent(
     let ssh_sock = SshSockFile::new(lbx_name, false)?;
     let agent_path = ssh_sock.path().to_owned();
 
+    let lbx_name = lbx_name.to_string();
     tokio::spawn(async move {
         log::debug!("Starting SSH agent server task");
 
@@ -123,6 +124,7 @@ pub async fn start_ssh_agent(
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),
             AskAgent {
+                lbx_name,
                 litterbox_path,
                 agent_locked,
             },
@@ -133,22 +135,22 @@ pub async fn start_ssh_agent(
     Ok(agent_path)
 }
 
-pub fn prompt_confirmation(confirmation_msg: &str) {
-    let mut user_accepted = false;
-
+pub fn prompt_confirmation(confirmation_msg: &str, lbx_name: &str) {
     let mut native_options = eframe::NativeOptions::default();
-    native_options.viewport.inner_size = Some((250.0, 300.0).into());
+    native_options.viewport.inner_size = Some((250.0, 320.0).into());
 
+    let mut user_response = false;
     let run_result = eframe::run_native(
         "Litterbox",
         native_options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            Ok(Box::new(ConfirmationDialog::new(
-                &mut user_accepted,
+            Ok(Box::new(ConfirmationDialog {
+                user_response: &mut user_response,
                 confirmation_msg,
-            )))
+                lbx_name,
+            }))
         }),
     );
 
@@ -156,7 +158,7 @@ pub fn prompt_confirmation(confirmation_msg: &str) {
         println!("Error running ConfirmationDialog: {:#?}", e);
     }
 
-    let reponse = if user_accepted {
+    let reponse = if user_response {
         USER_ACCEPTED
     } else {
         USER_DECLINED

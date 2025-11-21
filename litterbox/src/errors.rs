@@ -4,7 +4,7 @@ use std::{ffi::OsString, io, path::PathBuf, process::ExitStatus};
 
 #[derive(Debug)]
 pub enum LitterboxError {
-    RunPodman(io::Error),
+    RunCommand(io::Error, &'static str),
     PodmanError(ExitStatus, String),
     ParseOutput(std::str::Utf8Error),
     Deserialize(serde_json::error::Error),
@@ -36,9 +36,9 @@ pub enum LitterboxError {
 impl LitterboxError {
     pub fn print(&self) {
         match self {
-            LitterboxError::RunPodman(e) => {
+            LitterboxError::RunCommand(e, cmd) => {
                 error!("{:#?}", e);
-                println!("Could not run podman command. Perhaps it is not installed?");
+                println!("Could not run {cmd} command. Perhaps it is not installed?");
             }
             LitterboxError::PodmanError(exit_status, stderr) => {
                 error!("error code: {:#?}, message: {stderr}", exit_status);

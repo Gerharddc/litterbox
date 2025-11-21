@@ -25,10 +25,11 @@ fn mknod(
             &minor_num.to_string(),
         ])
         .spawn()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "mknod"))?;
 
-    // FIXME: create dedicated error
-    let res = child.wait().map_err(LitterboxError::RunPodman)?;
+    let res = child
+        .wait()
+        .map_err(|e| LitterboxError::RunCommand(e, "mknod"))?;
     debug!("res: {:#?}", res);
 
     // FIXME: create dedicated error

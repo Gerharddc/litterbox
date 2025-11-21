@@ -25,18 +25,16 @@ fn hash_password(password: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
 
-    // FIXME: return error instead of crashing
     argon2
         .hash_password(password.as_bytes(), &salt)
-        .unwrap()
+        .expect("Passwords should be hashable")
         .to_string()
 }
 
 fn check_password(password: &str, hash: &str) -> bool {
     use argon2::password_hash::{PasswordHash, PasswordVerifier};
 
-    // FIXME: return error instead of crashing
-    let parsed_hash = PasswordHash::new(hash).unwrap();
+    let parsed_hash = PasswordHash::new(hash).expect("Passwords should have valid hashes");
 
     Argon2::default()
         .verify_password(password.as_bytes(), &parsed_hash)
@@ -54,8 +52,8 @@ impl Key {
     fn new(name: &str, password: &str) -> Self {
         let key = gen_key();
 
-        // FIXME: return error instead of crashing
-        let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &key).unwrap();
+        let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &key)
+            .expect("Keys should be encryptable");
 
         Self {
             name: name.to_owned(),

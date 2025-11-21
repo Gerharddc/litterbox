@@ -57,7 +57,7 @@ pub fn list_containers() -> Result<AllContainers, LitterboxError> {
             "label=io.litterbox.name",
         ])
         .output()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
     let stdout = extract_stdout(&output)?;
     serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)
@@ -74,7 +74,7 @@ pub fn get_container_id(lbx_name: &str) -> Result<String, LitterboxError> {
             &format!("label=io.litterbox.name={lbx_name}"),
         ])
         .output()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
     let stdout = extract_stdout(&output)?;
     let containers: AllContainers =
@@ -99,7 +99,7 @@ pub fn get_image_id(lbx_name: &str) -> Result<String, LitterboxError> {
             &format!("label=io.litterbox.name={lbx_name}"),
         ])
         .output()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
     let stdout = extract_stdout(&output)?;
     let images: AllImages = serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)?;
@@ -149,9 +149,11 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
             dockerfile_path.to_str().expect("Invalid dockerfile_path."),
         ])
         .spawn()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
+    child
+        .wait()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
     info!("Built image named {image_name}.");
     Ok(())
 }
@@ -214,9 +216,11 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
             &image_id,
         ])
         .spawn()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
+    child
+        .wait()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
     info!("Created container named {container_name}.");
     Ok(())
 }
@@ -233,9 +237,11 @@ pub async fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
             &get_container_id(lbx_name)?,
         ])
         .spawn()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
+    child
+        .wait()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
     debug!("Litterbox finished.");
     Ok(())
 }
@@ -262,9 +268,11 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let mut child = Command::new("podman")
         .args(["rm", &container_id])
         .spawn()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
+    child
+        .wait()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
     info!("Container for Litterbox deleted!");
 
     let image_id = get_image_id(lbx_name)?;
@@ -272,9 +280,11 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let mut child = Command::new("podman")
         .args(["image", "rm", &image_id])
         .spawn()
-        .map_err(LitterboxError::RunPodman)?;
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child.wait().map_err(LitterboxError::RunPodman)?; // FIXME: Properly handle Ok(Err...)
+    child
+        .wait()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
     info!("Image for Litterbox deleted!");
 
     // TODO: ask the user if they also want the home dir deleted

@@ -4,7 +4,7 @@
   <img src="litterbox/assets/cat.svg" alt="Centered SVG" width="200"/>
 </p>
 
-[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml)
+[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml)[![Build & Release Installer](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml)
 
 Litterbox is a Linux sandbox environment catered to the needs of developers. Its primary goal is to provide SOME isolation between a containerised development environment and a host system. Its secondary goal is to provide a repeatable and documented environment for development.
 
@@ -23,6 +23,7 @@ By design, Litterbox comes with AT LEAST the following limitation/vulnerabilitie
 - Since applications running inside a Litterbox have normal access to your Wayland server, they have full access to things such as your clipboard so you should avoid copying any sensitive data around while you have a Litterbox running.
 - Litterbox relies on Podman as its container runtime. Thus, anything running inside a Litterbox could still exploit vulnerabilities in your Podman engine to gain full access to your system.
 - Litterbox does not provide ANY network isolation. Anything running inside a Litterbox has fully access to your host's network (including localhost) in the same way a normal application running on your system would. You should therefore be very careful to not have anything sensitive and/or vulnerable accessible on your network.
+
 
 TODO: document SSH agent limitations
 
@@ -71,4 +72,4 @@ Litterbox is still very much WIP with many missing features or required improvem
 
 ## Contributing
 
-Litterbox already meets my own needs and I have many higher priority things that I want to spend my spare time on instead. Therefore I will unfortunately not be able to attend to any feature requests and likely not to bug reports either. However, I would be more than happy to accept help in the form of PRs. And if this is something that you would like to co-maintain, please reach out!
+Litterbox already meets most of my own needs and I have higher priority projects that I currently want to focus on instead. Hence, I will unfortunately not be able to spend much time (if any) on feature requests and bug reports. However, I would be more than happy to accept help in the form of PRs. Also please feel free to help out in any other way you see suitable!

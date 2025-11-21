@@ -175,7 +175,7 @@ enum Commands {
     },
 }
 
-async fn run_menu() -> Result<(), LitterboxError> {
+fn run_menu() -> Result<(), LitterboxError> {
     let args = Args::parse();
     match args.command {
         Commands::Prepare { name } => {
@@ -189,7 +189,9 @@ async fn run_menu() -> Result<(), LitterboxError> {
             println!("Litterbox created!");
         }
         Commands::Enter { name } => {
-            enter_litterbox(&name).await?;
+            // We wait to create the runtime here since only this one command depends on it.
+            let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
+            rt.block_on(enter_litterbox(&name))?;
             println!("Exited Litterbox...")
         }
         Commands::List => {
@@ -273,11 +275,10 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     env_logger::init();
 
-    if let Err(e) = run_menu().await {
+    if let Err(e) = run_menu() {
         e.print();
     }
 }

@@ -1,4 +1,4 @@
-name: Build & Release Installer
+name: Release Installer
 
 on:
   push:

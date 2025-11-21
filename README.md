@@ -4,7 +4,7 @@
   <img src="litterbox/assets/cat.svg" alt="Centered SVG" width="200"/>
 </p>
 
-[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml) [![Build & Release Installer](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml)
+[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml) [![Release Installer](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml)
 
 Litterbox is a Linux sandbox environment catered to the needs of developers. Its primary goal is to provide SOME isolation between a containerised development environment and a host system. Its secondary goal is to provide a repeatable and documented environment for development.
 

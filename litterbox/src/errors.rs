@@ -31,6 +31,7 @@ pub enum LitterboxError {
     InvalidDevicePath(String),
     ConnectSocket(io::Error),
     RegisterKey(russh::keys::Error),
+    ParseKeyFile(ron::error::SpannedError),
 }
 
 impl LitterboxError {
@@ -135,6 +136,9 @@ impl LitterboxError {
                     "Failed to register SSH key with internal agent: {:#?}",
                     error
                 );
+            }
+            LitterboxError::ParseKeyFile(error) => {
+                println!("Failed to parse keyfile: {:#?}", error);
             }
         }
     }

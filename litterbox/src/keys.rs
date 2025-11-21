@@ -122,10 +122,7 @@ impl Keys {
         }
 
         let contents = read_file(keyfile.as_path())?;
-
-        // FIXME: return error instead of unwrapping
-        let parsed: Self = ron::from_str(&contents).unwrap();
-        Ok(parsed)
+        ron::from_str(&contents).map_err(LitterboxError::ParseKeyFile)
     }
 
     pub fn print_list(&self) {
@@ -247,7 +244,7 @@ impl Keys {
         let mut client = russh::keys::agent::client::AgentClient::connect(stream);
 
         for key in lbx_keys {
-            println!("Registering key: {}", key.name);
+            log::info!("Registering key into agent: {}", key.name);
 
             let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
                 .expect("Key should have been encrypted with user password.");
@@ -284,9 +281,8 @@ mod tests {
         let password = "SomePassword";
 
         let original_key = gen_key();
-
-        let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &original_key).unwrap();
-
+        let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &original_key)
+            .expect("Key should be encryptable.");
         let decrypted_key = decode_pkcs8(&encrypted_key, Some(password.as_bytes()))
             .expect("Key should have been encrypted with user password.");
 

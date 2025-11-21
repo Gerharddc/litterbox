@@ -117,7 +117,9 @@ pub async fn start_ssh_agent(
     tokio::spawn(async move {
         log::debug!("Starting SSH agent server task");
 
-        let listener = tokio::net::UnixListener::bind(ssh_sock.path()).unwrap();
+        let listener =
+            tokio::net::UnixListener::bind(ssh_sock.path()).expect("SSH socket should be bindable");
+
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),
             AskAgent {

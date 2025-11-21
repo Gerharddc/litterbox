@@ -4,7 +4,7 @@
   <img src="litterbox/assets/cat.svg" alt="Centered SVG" width="200"/>
 </p>
 
-[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml)[![Build & Release Installer](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml)
+[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml) [![Build & Release Installer](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/installer.yml)
 
 Litterbox is a Linux sandbox environment catered to the needs of developers. Its primary goal is to provide SOME isolation between a containerised development environment and a host system. Its secondary goal is to provide a repeatable and documented environment for development.
 
@@ -23,9 +23,7 @@ By design, Litterbox comes with AT LEAST the following limitation/vulnerabilitie
 - Since applications running inside a Litterbox have normal access to your Wayland server, they have full access to things such as your clipboard so you should avoid copying any sensitive data around while you have a Litterbox running.
 - Litterbox relies on Podman as its container runtime. Thus, anything running inside a Litterbox could still exploit vulnerabilities in your Podman engine to gain full access to your system.
 - Litterbox does not provide ANY network isolation. Anything running inside a Litterbox has fully access to your host's network (including localhost) in the same way a normal application running on your system would. You should therefore be very careful to not have anything sensitive and/or vulnerable accessible on your network.
-
-
-TODO: document SSH agent limitations
+- Litterbox hosts an SSH agent server powered by https://crates.io/crates/russh. The goal of this server is to provide restricted access to SSH keys inside a Litterbox through a shared socket. Thus, anything running inside a Litterbox could still exploit vulnerabilities in this library to gain full access to your system.
 
 N.B. it is again emphasised that Litterbox does not come with any warranties or guarantees. Using it is at your own risk and the Litterbox authors do not accept any libiality for damages that might be incurred.
 

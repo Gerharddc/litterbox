@@ -33,8 +33,8 @@ N.B. it is again emphasised that Litterbox does not come with any warranties or 
 Simply run the following commands:
 
 ```
-curl -LO https://github.com/Gerharddc/litterbox/releases/latest/download/install-litterbox.run  
-sudo chmod +x install-litterbox.run  
+curl -LO https://github.com/Gerharddc/litterbox/releases/latest/download/install-litterbox.run
+sudo chmod +x install-litterbox.run
 ./install-litterbox.run
 ```
 
@@ -62,11 +62,12 @@ Litterbox is most similar to Distrobox in terms of its design and functionality.
 
 Litterbox is still very much WIP with many missing features or required improvements. Following is a list of some important pieces that are still missing:
 
-- Add automated testing.
-- Expose limited DBus access to allow applications to open URLs.
-- Make it possible to Xorg apps to running via Wayback integration.
-- Add Dockerfile templates for more distros.
-- Add optional support for network isolation.
+- [ ] Use `udica` to improve isolation on SELinux environments.
+- [ ] Add automated testing.
+- [ ] Expose limited DBus access to allow applications to open URLs.
+- [ ] Make it possible to Xorg apps to running via Wayback integration.
+- [ ] Add Dockerfile templates for more distros.
+- [ ] Add optional support for network isolation.
 
 ## Contributing
 

@@ -1,7 +1,10 @@
 use inquire::{Confirm, Password};
 use log::{debug, info};
 use serde::Deserialize;
-use std::{fs, process::Command};
+use std::{
+    fs,
+    process::{Child, Command},
+};
 
 use crate::{
     errors::LitterboxError,
@@ -111,6 +114,18 @@ pub fn get_image_id(lbx_name: &str) -> Result<String, LitterboxError> {
     }
 }
 
+fn wait_for_podman(mut child: Child) -> Result<(), LitterboxError> {
+    let res = child
+        .wait()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
+
+    if !res.success() {
+        Err(LitterboxError::CommandFailed(res, "podman"))
+    } else {
+        Ok(())
+    }
+}
+
 pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     match get_image_id(lbx_name) {
         Ok(id) => return Err(LitterboxError::ImageAlreadyExists(id)), // TODO: instead prompt user how to proceed
@@ -134,7 +149,7 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
         .map_err(LitterboxError::PromptError)?;
 
     let image_name = gen_random_name();
-    let mut child = Command::new("podman")
+    let child = Command::new("podman")
         .args([
             "build",
             "--build-arg",
@@ -151,9 +166,7 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
         .spawn()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child
-        .wait()
-        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
+    wait_for_podman(child)?;
     info!("Built image named {image_name}.");
     Ok(())
 }
@@ -182,7 +195,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
         .to_str()
         .expect("SSH socket path should be valid string");
 
-    let mut child = Command::new("podman")
+    let child = Command::new("podman")
         .args([
             "create",
             "--tty",
@@ -193,7 +206,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
             "/dev/dri",
             "--hostname",
             &format!("lbx-{lbx_name}"),
-            "--security-opt=label=disable", // FIXME: use udica to make better rules instead
+            "--security-opt=label=disable", // TODO: use udica to make better rules instead
             "-e",
             "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
             "-v",
@@ -218,9 +231,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
         .spawn()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child
-        .wait()
-        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
+    wait_for_podman(child)?;
     info!("Created container named {container_name}.");
     Ok(())
 }
@@ -229,7 +240,7 @@ pub async fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let keys = crate::keys::Keys::load()?;
     keys.start_ssh_server(lbx_name).await?;
 
-    let mut child = Command::new("podman")
+    let child = Command::new("podman")
         .args([
             "start",
             "--interactive",
@@ -239,9 +250,7 @@ pub async fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
         .spawn()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child
-        .wait()
-        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
+    wait_for_podman(child)?;
     debug!("Litterbox finished.");
     Ok(())
 }
@@ -265,26 +274,21 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
         }
     }
 
-    let mut child = Command::new("podman")
+    let child = Command::new("podman")
         .args(["rm", &container_id])
         .spawn()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child
-        .wait()
-        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
+    wait_for_podman(child)?;
     info!("Container for Litterbox deleted!");
 
     let image_id = get_image_id(lbx_name)?;
-
-    let mut child = Command::new("podman")
+    let child = Command::new("podman")
         .args(["image", "rm", &image_id])
         .spawn()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    child
-        .wait()
-        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?; // FIXME: Properly handle Ok(Err...)
+    wait_for_podman(child)?;
     info!("Image for Litterbox deleted!");
 
     // TODO: ask the user if they also want the home dir deleted

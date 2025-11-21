@@ -5,6 +5,7 @@ use std::{ffi::OsString, io, path::PathBuf, process::ExitStatus};
 #[derive(Debug)]
 pub enum LitterboxError {
     RunCommand(io::Error, &'static str),
+    CommandFailed(ExitStatus, &'static str),
     PodmanError(ExitStatus, String),
     ParseOutput(std::str::Utf8Error),
     Deserialize(serde_json::error::Error),
@@ -39,106 +40,110 @@ impl LitterboxError {
         match self {
             LitterboxError::RunCommand(e, cmd) => {
                 error!("{:#?}", e);
-                println!("Could not run {cmd} command. Perhaps it is not installed?");
+                eprintln!("Could not run {cmd} command. Perhaps it is not installed?");
+            }
+            LitterboxError::CommandFailed(exit_status, cmd) => {
+                error!("error code: {:#?}", exit_status);
+                eprintln!("{cmd} command failed with non-zero error code.");
             }
             LitterboxError::PodmanError(exit_status, stderr) => {
                 error!("error code: {:#?}, message: {stderr}", exit_status);
-                println!("Podman command returned non-zero error code.");
+                eprintln!("Podman command returned non-zero error code.");
             }
             LitterboxError::ParseOutput(e) => {
                 error!("{:#?}", e);
-                println!("Could not parse output from podman.");
+                eprintln!("Could not parse output from podman.");
             }
             LitterboxError::Deserialize(e) => {
                 error!("{:#?}", e);
-                println!("Could not deserialize output from podman. Unexpected format.");
+                eprintln!("Could not deserialize output from podman. Unexpected format.");
             }
             LitterboxError::EnvVarUndefined(name) => {
-                println!("Environment variable not defined: {name}.")
+                eprintln!("Environment variable not defined: {name}.")
             }
             LitterboxError::EnvVarInvalid(name, value) => {
                 error!("{:#?}", value);
-                println!("Environment variable not a valid string: {name}.");
+                eprintln!("Environment variable not a valid string: {name}.");
             }
             LitterboxError::DirUncreatable(error, dir) => {
                 error!("{:#?}", error);
-                println!("Directory could not be created: {}.", dir.display());
+                eprintln!("Directory could not be created: {}.", dir.display());
             }
             LitterboxError::WriteFailed(error, path) => {
                 error!("{:#?}", error);
-                println!("File could not be written: {}.", path.display());
+                eprintln!("File could not be written: {}.", path.display());
             }
             LitterboxError::ReadFailed(error, path) => {
                 error!("{:#?}", error);
-                println!("File could not be read: {}.", path.display());
+                eprintln!("File could not be read: {}.", path.display());
             }
             LitterboxError::ExistsFailed(error, path) => {
                 error!("{:#?}", error);
-                println!("Could not check if file exists: {}.", path.display());
+                eprintln!("Could not check if file exists: {}.", path.display());
             }
             LitterboxError::RemoveFailed(error, path) => {
                 error!("{:#?}", error);
-                println!("Could not remove file: {}.", path.display());
+                eprintln!("Could not remove file: {}.", path.display());
             }
             LitterboxError::NoContainerForName => {
-                println!("A container with the specified Litterbox name could not be found.");
+                eprintln!("A container with the specified Litterbox name could not be found.");
             }
             LitterboxError::MultipleContainersForName => {
-                println!("Multiple containers were found with the specified Litterbox name.");
+                eprintln!("Multiple containers were found with the specified Litterbox name.");
             }
             LitterboxError::ContainerAlreadyExists(id) => {
-                println!("Container for Litterbox already exists with id: {id}.");
+                eprintln!("Container for Litterbox already exists with id: {id}.");
             }
             LitterboxError::NoImageForName => {
-                println!("An image with the specified Litterbox name could not be found.");
+                eprintln!("An image with the specified Litterbox name could not be found.");
             }
             LitterboxError::MultipleImagesForName => {
-                println!("Multiple images were found with the specified Litterbox name.");
+                eprintln!("Multiple images were found with the specified Litterbox name.");
             }
             LitterboxError::ImageAlreadyExists(id) => {
-                println!("Image for Litterbox already exists with id: {id}.");
+                eprintln!("Image for Litterbox already exists with id: {id}.");
             }
             LitterboxError::DockerfileAlreadyExists(path) => {
-                println!(
+                eprintln!(
                     "Dockerfile for Litterbox already exists at {}.",
                     path.display()
                 );
             }
             LitterboxError::PromptError(error) => {
                 error!("{:#?}", error);
-                println!("Failed to retrieve valid input from user.");
+                eprintln!("Failed to retrieve valid input from user.");
             }
             LitterboxError::FailedToSerialise(name) => {
-                println!("Failed to serialise {name}.");
+                eprintln!("Failed to serialise {name}.");
             }
             LitterboxError::KeyAlreadyExists(name) => {
-                println!("Key named {name} already exists.")
+                eprintln!("Key named {name} already exists.")
             }
             LitterboxError::KeyDoesNotExist(name) => {
-                println!("Key named {name} does not exist.")
+                eprintln!("Key named {name} does not exist.")
             }
             LitterboxError::AlreadyAttachedToKey(key_name, litterbox_name) => {
-                println!(
+                eprintln!(
                     "Litterbox named {litterbox_name} already attached to key named {key_name}."
                 )
             }
             LitterboxError::Nix(errno) => {
-                println!("Linux error: {:#?}", errno);
+                eprintln!("Linux error: {:#?}", errno);
             }
             LitterboxError::InvalidDevicePath(path) => {
-                println!("The following device path is not valid: {:#?}", path);
+                eprintln!("The following device path is not valid: {:#?}", path);
             }
             LitterboxError::ConnectSocket(error) => {
-                println!("Failed to connect to socket: {:#?}", error);
+                error!("{:#?}", error);
+                eprintln!("Failed to connect to socket.");
             }
             LitterboxError::RegisterKey(error) => {
-                println!(
-                    "Failed to register SSH key with internal agent: {:#?}",
-                    error
-                );
+                error!("{:#?}", error);
+                eprintln!("Failed to register SSH key with internal agent.");
             }
             LitterboxError::ParseKeyFile(error) => {
-                println!("Failed to parse keyfile: {:#?}", error);
+                error!("{:#?}", error);
+                eprintln!("Failed to parse keyfile.");
             }
         }
     }

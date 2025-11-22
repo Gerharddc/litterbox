@@ -194,6 +194,8 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
         .to_str()
         .expect("SSH socket path should be valid string");
 
+    // FIXME: add option for host network
+
     let child = Command::new("podman")
         .args([
             "create",

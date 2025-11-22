@@ -49,6 +49,7 @@ jobs:
           git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Dispatch event to create installer
+        if: steps.check_tag.outputs.exists == 'false'
         uses: peter-evans/repository-dispatch@v4
         with:
           event-type: tag-added

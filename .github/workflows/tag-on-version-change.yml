@@ -5,6 +5,9 @@ on:
     workflows: ["Build and Test"]
     types: [completed]
 
+permissions:
+  contents: write
+
 jobs:
   tag:
     # Only run if:

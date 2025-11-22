@@ -28,7 +28,7 @@ jobs:
       - name: Extract version from Cargo.toml
         id: version
         run: |
-          VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/version *= *"([^"]+)"/\1/')
+          VERSION=$(grep -m1 '^version' litterbox/Cargo.toml | sed -E 's/version *= *"([^"]+)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if tag exists

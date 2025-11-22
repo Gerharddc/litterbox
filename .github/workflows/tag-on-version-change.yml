@@ -1,4 +1,4 @@
-name: Tag on Cargo Version Change
+name: Tag on Version Change
 
 on:
   workflow_run:
@@ -47,3 +47,9 @@ jobs:
           git config user.email "github-actions@github.com"
           git tag "v${{ steps.version.outputs.version }}"
           git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Dispatch event to create installer
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          event-type: tag-added
+          client-payload: '{"version": "v${{ steps.version.outputs.version }}"}'

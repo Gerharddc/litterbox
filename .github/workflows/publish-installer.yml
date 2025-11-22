@@ -1,15 +1,15 @@
 name: Publish Installer
 
 on:
-  push:
-    tags:
-      - "v*"
+  repository_dispatch:
+    types: [tag-added]
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      installer_path: ${{ steps.package.outputs.installer_path }}
 
     steps:
       - uses: actions/checkout@v4
@@ -25,13 +25,13 @@ jobs:
 
       - name: Create self-extracting installer
         run: |
-          cat installer.sh payload.tar.gz > install-litterbox.run
-          chmod +x install-litterbox.run
+          cat installer.sh payload.tar.gz > install.sh
+          chmod +x install.sh
 
       - uses: actions/upload-artifact@v4
         with:
           name: installer
-          path: install-litterbox.run
+          path: install.sh
 
   release:
     needs: build
@@ -48,6 +48,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: install-litterbox.run
+          files: install.sh
+          name: ${{ github.event.client_payload.version }}
+          tag_name: ${{ github.event.client_payload.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

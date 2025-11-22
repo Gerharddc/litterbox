@@ -114,12 +114,17 @@ pub async fn start_ssh_agent(
     let ssh_sock = SshSockFile::new(lbx_name, false)?;
     let agent_path = ssh_sock.path().to_owned();
 
+    let ssh_sock_path = ssh_sock.path();
+    log::debug!("Binding SSH socket: {:#?}", ssh_sock_path);
+    let listener =
+        tokio::net::UnixListener::bind(ssh_sock_path).expect("SSH socket should be bindable");
+
     let lbx_name = lbx_name.to_string();
     tokio::spawn(async move {
         log::debug!("Starting SSH agent server task");
 
-        let listener =
-            tokio::net::UnixListener::bind(ssh_sock.path()).expect("SSH socket should be bindable");
+        // We need to keep the socket object alive to prevent the file from getting deleted
+        let _ssh_sock = ssh_sock;
 
         russh::keys::agent::server::serve(
             tokio_stream::wrappers::UnixListenerStream::new(listener),

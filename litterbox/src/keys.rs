@@ -244,19 +244,19 @@ impl Keys {
             return Ok(());
         }
 
-        println!(
-            "This Litterbox has keys attached. You will need to provide your password to attach them."
-        );
+        println!("This Litterbox has keys attached. A password is needed to decrypt them.");
         let keys_password = self.prompt_password()?;
 
         let agent_locked = Arc::new(AtomicBool::new(false));
         let agent_path = start_ssh_agent(lbx_name, agent_locked.clone()).await?;
+        log::debug!("agent_path: {:#?}", agent_path);
 
         let stream = tokio::net::UnixStream::connect(&agent_path)
             .await
             .map_err(LitterboxError::ConnectSocket)?;
         let mut client = russh::keys::agent::client::AgentClient::connect(stream);
 
+        log::debug!("Registering keys to SSH agent.");
         for key in lbx_keys {
             log::info!("Registering key into agent: {}", key.name);
 

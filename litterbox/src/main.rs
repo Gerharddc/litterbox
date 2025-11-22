@@ -254,6 +254,12 @@ enum KeyCommands {
         /// The name of the key
         key_name: String,
     },
+
+    /// Print the key in OpenSSH public key format
+    Print {
+        /// The name of the key
+        key_name: String,
+    },
 }
 
 fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
@@ -276,6 +282,9 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
         }
         KeyCommands::Detach { key_name } => {
             keys.detach(&key_name)?;
+        }
+        KeyCommands::Print { key_name } => {
+            keys.print(&key_name)?;
         }
     }
     Ok(())

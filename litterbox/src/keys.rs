@@ -147,6 +147,10 @@ impl Keys {
         }
     }
 
+    fn key(&self, key_name: &str) -> Option<&Key> {
+        self.keys.iter().find(|key| key.name == key_name)
+    }
+
     fn key_mut(&mut self, key_name: &str) -> Option<&mut Key> {
         self.keys.iter_mut().find(|key| key.name == key_name)
     }
@@ -229,14 +233,24 @@ impl Keys {
     }
 
     pub async fn start_ssh_server(&self, lbx_name: &str) -> Result<(), LitterboxError> {
-        let agent_locked = Arc::new(AtomicBool::new(false));
-        let agent_path = start_ssh_agent(lbx_name, agent_locked.clone()).await?;
-
-        let keys_password = self.prompt_password()?;
         let lbx_keys = self
             .keys
             .iter()
             .filter(|key| key.attached_litterboxes.iter().any(|name| name == lbx_name));
+
+        let key_count = lbx_keys.clone().count();
+        if key_count < 1 {
+            println!("No keys attached to Litterbox. SSH agent will not be started!");
+            return Ok(());
+        }
+
+        println!(
+            "This Litterbox has keys attached. You will need to provide your password to attach them."
+        );
+        let keys_password = self.prompt_password()?;
+
+        let agent_locked = Arc::new(AtomicBool::new(false));
+        let agent_path = start_ssh_agent(lbx_name, agent_locked.clone()).await?;
 
         let stream = tokio::net::UnixStream::connect(&agent_path)
             .await
@@ -259,6 +273,23 @@ impl Keys {
         agent_locked.store(true, Ordering::SeqCst);
 
         Ok(())
+    }
+
+    pub fn print(&self, key_name: &str) -> Result<(), LitterboxError> {
+        match self.key(key_name) {
+            Some(key) => {
+                let keys_password = self.prompt_password()?;
+                let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
+                    .expect("Key should have been encrypted with user password.");
+                let public = decrypted.public_key();
+                let openssh = public
+                    .to_openssh()
+                    .expect("OpenSSH format key should be valid.");
+                println!("{openssh}");
+                Ok(())
+            }
+            None => Err(LitterboxError::KeyDoesNotExist(key_name.to_owned())),
+        }
     }
 }
 

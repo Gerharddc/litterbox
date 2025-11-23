@@ -1,0 +1,8 @@
+{% set raw = load_data(path=path, format="plain") %}
+
+{% set cleaned = raw | regex_replace(
+    pattern="(?s)<!-- exclude:start -->.*?<!-- exclude:end -->",
+    rep=""
+) %}
+
+{{ cleaned | markdown | safe }}

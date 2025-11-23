@@ -1,3 +1,4 @@
+<!-- exclude:start -->
 # Litterbox
 
 <p align="center">
@@ -5,12 +6,15 @@
 </p>
 
 [![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml)
+<!-- exclude:end -->
 
 Litterbox is a Linux sandbox environment catered to the needs of developers. Its primary goal is to provide SOME isolation between a containerised development environment and a host system. Its secondary goal is to provide a repeatable and documented environment for development.
 
 The isolation goal is to prevent rogue processes (which might arrive through a supply chain attack or similar) from gaining access to sensitive files on your home directory or access to all of your SSH keys. Litterbox achieves file system isolation by restricting a development container to only have access to a single folder on your host system (and nothing above it). SSH key protection is achieved with a custom SSH agent that only exposes a limited number of SSH keys to a single Litterbox and prompts the user (via a pop-up window) before completing any signing requests.
 
 N.B. Litterbox is free software that does not come with any warranty or guarantees. It is not an anti-malware solution and does not guarantee that your system will be protected from any attacks. Its goal is just to be BETTER THAN NOTHING but even that is not guaranteed. By using this software you agree that you are doing so at your own risk and take full responsibility for anything that might happen.
+
+---
 
 ## Isolation limitations
 
@@ -27,6 +31,8 @@ By design, Litterbox comes with AT LEAST the following limitation/vulnerabilitie
 
 N.B. it is again emphasised that Litterbox does not come with any warranties or guarantees. Using it is at your own risk and the Litterbox authors do not accept any libiality for damages that might be incurred.
 
+---
+
 ## Installation
 
 Simply run the following commands:
@@ -37,9 +43,13 @@ sudo chmod +x install.sh
 ./install.sh
 ```
 
+---
+
 ## Usage
 
 TODO: write section
+
+---
 
 ## Comparison to alternatives
 
@@ -57,6 +67,8 @@ Litterbox is very similar to DevContainers in that is uses Dockerfiles and conta
 
 Litterbox is most similar to Distrobox in terms of its design and functionality. The primary difference is that Distrobox does not aim to provide any isolation/sandboxing at all whereas Litterbox has a strong emphasis on providing it. Distrobox avoids sandboxing in order to provide more seamless integration between applications running inside the Distrobox and the host system. It tries to solve the problem of running software intended for a different distro as if it is running natively. Litterbox instead sacrificies much of the convenience that Distrobox provides in exchange for some isolation/sandboxing capabilities.
 
+---
+
 ## TODO
 
 Litterbox is still very much WIP with many missing features or required improvements. Following is a list of some important pieces that are still missing:
@@ -67,6 +79,8 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [ ] Make it possible to Xorg apps to running via Wayback integration.
 - [ ] Add Dockerfile templates for more distros.
 - [ ] Add optional support for network isolation.
+
+---
 
 ## Contributing
 

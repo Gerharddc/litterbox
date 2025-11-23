@@ -1,0 +1,5 @@
+{% set svg = load_data(path=path, format="plain") %}
+
+<div style="text-align: center">
+    <div style="display: inline-block">{{ svg | safe }}</div>
+</div>

@@ -1,0 +1,31 @@
+title = "Litterbox"
+base_url = "https://litterbox.work"
+description = "Somewhat Isolated Development Containers"
+author = "Gerhard de Clercq"
+
+theme = "duckquill"
+compile_sass = true
+build_search_index = true
+minify_html = true
+
+[markdown]
+highlight_code = true
+highlight_theme = "css"
+highlight_themes_css = [
+	{ theme = "solarized-dark", filename = "syntax-theme-dark.css" },
+	{ theme = "solarized-light", filename = "syntax-theme-light.css" }
+]
+smart_punctuation = true
+bottom_footnotes = true
+github_alerts = true
+
+[extra]
+styles = ["hr.css"]
+accent_color = "#3584e4"
+emoji_favicon = "🐈"
+
+[extra.footer]
+links = [
+    { url = "https://github.com/Gerharddc/litterbox", name = "Project GitHub" },
+]
+show_powered_by = true

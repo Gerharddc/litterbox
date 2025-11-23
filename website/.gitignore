@@ -1,2 +1,4 @@
 public/
 static/
+node_modules/
+.wrangler/

@@ -37,7 +37,7 @@ N.B. it is again emphasised that Litterbox does not come with any warranties or 
 
 Simply run the following commands:
 
-```
+```bash
 curl -LO https://github.com/Gerharddc/litterbox/releases/latest/download/install.sh
 sudo chmod +x install.sh
 ./install.sh

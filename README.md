@@ -5,7 +5,7 @@
   <img src="litterbox/assets/cat.svg" alt="Centered SVG" width="200"/>
 </p>
 
-[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml)
+[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml) [![Tag on Version Change](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml) [![Publish Installer](https://github.com/Gerharddc/litterbox/actions/workflows/publish-installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-installer.yml) [![Publish Website](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml)
 <!-- exclude:end -->
 
 Litterbox is a Linux sandbox environment catered to the needs of developers. Its primary goal is to provide SOME isolation between a containerised development environment and a host system. Its secondary goal is to provide a repeatable and documented environment for development.
@@ -73,12 +73,12 @@ Litterbox is most similar to Distrobox in terms of its design and functionality.
 
 Litterbox is still very much WIP with many missing features or required improvements. Following is a list of some important pieces that are still missing:
 
+- [ ] Add optional support for using host network.
 - [ ] Use `udica` to improve isolation on SELinux environments.
 - [ ] Add automated testing.
 - [ ] Expose limited DBus access to allow applications to open URLs.
 - [ ] Make it possible to Xorg apps to running via Wayback integration.
 - [ ] Add Dockerfile templates for more distros.
-- [ ] Add optional support for network isolation.
 
 ---
 

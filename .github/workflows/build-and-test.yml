@@ -5,10 +5,12 @@ on:
     branches: ["main"]
     paths-ignore:
       - README.md
+      - website/**
   pull_request:
     branches: ["main"]
     paths-ignore:
       - README.md
+      - website/**
 
 permissions:
   contents: read

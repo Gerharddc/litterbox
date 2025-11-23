@@ -24,6 +24,9 @@ jobs:
       - name: Build Zola site
         run: cd website && zola build
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Publish to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:

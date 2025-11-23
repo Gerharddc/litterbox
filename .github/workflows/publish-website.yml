@@ -15,7 +15,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Zola
-        run: cargo install zola
+        uses: taiki-e/install-action@v2
+        with:
+          tool: zola@0.21.0
 
       - name: Build Zola site
         run: cd website && zola build

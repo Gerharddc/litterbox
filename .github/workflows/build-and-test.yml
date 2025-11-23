@@ -6,11 +6,13 @@ on:
     paths-ignore:
       - README.md
       - website/**
+      - .github/workflows/publish-website.yml
   pull_request:
     branches: ["main"]
     paths-ignore:
       - README.md
       - website/**
+      - .github/workflows/publish-website.yml
 
 permissions:
   contents: read

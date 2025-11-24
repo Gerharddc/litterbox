@@ -121,7 +121,7 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Define a new Litterbox using a template Dockerfile
-    #[clap(visible_alias("prep"))]
+    #[clap(visible_alias("def"))]
     Define {
         /// The name of the Litterbox to define
         name: String,

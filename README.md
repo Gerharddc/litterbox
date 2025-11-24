@@ -46,13 +46,23 @@ TODO: write section
 
 ## Usage
 
+### Define
+
 First you will need to define your Litterbox by running `litterbox define LBX_NAME`. This will prompt you to pick a template and will place a Dockerfile in your `~/Litterbox/definitions` directory. The templates are a bit opinionated about what gets installed by default, so feel free to modify them! Please take note that (as described in the Dockerfile templates), anything you do inside the container's home directory during the image build phase will "disappear" when the container runs. This is because a different directory on your host (in `~/Litterbox/homes`) gets mounted over it at runtime. Thus, the Dockerfiles instead provide a script which gets run the first time that the container starts in order to set up the home directory.
+
+### Build
 
 Then you will need to build your Litterbox by running `litterbox build LBX_NAME`. If you ever want to delete it again, simply run `litterbox delete LBX_NAME`. Currently you will need to a delete a Litterbox to rebuild it, but I hope to add a dedicated rebuild function at some point.
 
+### Enter
+
 Finally you can then enter your Litterbox by running `litterbox enter LBX_NAME`. Once inside the Litterbox you can then start working on your projects!
 
+### Keys
+
 If you want SSH keys to be available inside a Litterbox, simply run `litterbox keys generate KEY_NAME` to genererate a random key. You can then attach it to a Litterbox by running `litterbox keys attach KEY_NAME LBX_NAME` and detach it again using `litterbox keys attach KEY_NAME`. You can also view the public key by running `litterbox keys print KEY_NAME`. When a key is attached to a Litterbox, it is available through an SSH agent socket and each attempted interaction with the agent prompts a confirmation window to pop up. Also note that the keys are stored in `~/Litterbox/keys.ron` and encrypted with a password that you chose.
+
+### Devices
 
 If you ever need to make a device (such as a virtual serial port) available inside a Litterbox, simply run `litterbox device LBX_NAME DEVICE_PATH`. This will make the device available inside the Litterbox by creating a device node inside its home directory. To remove the device again later, simply delete this file that got created. Please note that the device node corresponds to a device using its device number and not some higher level identifier. Thus, if you for instance unplug the device and plug in a new device of the same type, the device node will now point to the new device. So be careful what you expose inside the Litterbox!
 

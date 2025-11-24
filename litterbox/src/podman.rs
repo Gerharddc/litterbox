@@ -9,7 +9,7 @@ use std::{
 use crate::{
     errors::LitterboxError,
     extract_stdout,
-    files::{SshSockFile, dockerfile_path, path_relative_to_home},
+    files::{SshSockFile, dockerfile_path, path_relative_to_lbx_root},
     gen_random_name, get_env, prepare_litterbox,
 };
 
@@ -184,7 +184,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
     let wayland_display = get_env("WAYLAND_DISPLAY")?;
     let xdg_runtime_dir = get_env("XDG_RUNTIME_DIR")?;
 
-    let litterbox_home = path_relative_to_home(lbx_name)?;
+    let litterbox_home = path_relative_to_lbx_root(lbx_name)?;
     fs::create_dir_all(&litterbox_home)
         .map_err(|e| LitterboxError::DirUncreatable(e, litterbox_home.clone()))?;
 

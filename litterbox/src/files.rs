@@ -3,28 +3,23 @@ use std::path::{Path, PathBuf};
 
 use crate::{LitterboxError, get_env};
 
-/// Returns a path relative to the Litterbox home directory (i.e. ~/Litterbox)
-pub fn path_relative_to_home(relative_path: &str) -> Result<PathBuf, LitterboxError> {
+pub fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf, LitterboxError> {
     let home_dir = get_env("HOME")?;
     let home_path = Path::new(&home_dir);
     let full_path = home_path.join("Litterbox").join(relative_path);
-
-    // TODO: maybe don't do the lossy conversion?
-    let full_path = full_path.to_string_lossy().to_string();
-    let full_path = PathBuf::from(full_path);
     Ok(full_path)
 }
 
 pub fn dockerfile_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
-    path_relative_to_home(&format!("{lbx_name}.Dockerfile"))
+    path_relative_to_lbx_root(&format!("definitions/{lbx_name}.Dockerfile"))
 }
 
 pub fn keyfile_path() -> Result<PathBuf, LitterboxError> {
-    path_relative_to_home("keys.ron")
+    path_relative_to_lbx_root("keys.ron")
 }
 
 pub fn lbx_home_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
-    path_relative_to_home(lbx_name)
+    path_relative_to_lbx_root(&format!("homes/{lbx_name}"))
 }
 
 pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {
@@ -47,7 +42,7 @@ pub struct SshSockFile {
 
 impl SshSockFile {
     pub fn new(lbx_name: &str, create_empty_placeholder: bool) -> Result<Self, LitterboxError> {
-        let path = path_relative_to_home(&format!(".ssh/{lbx_name}.sock"))?;
+        let path = path_relative_to_lbx_root(&format!(".ssh/{lbx_name}.sock"))?;
         let path_ref = &path;
 
         if fs::exists(path_ref).map_err(|e| LitterboxError::ExistsFailed(e, path.clone()))? {

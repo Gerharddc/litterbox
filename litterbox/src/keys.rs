@@ -136,6 +136,7 @@ impl Keys {
         loop {
             let password = Password::new("Key Manager Password")
                 .with_display_mode(inquire::PasswordDisplayMode::Masked)
+                .without_confirmation()
                 .prompt()
                 .map_err(LitterboxError::PromptError)?;
 
@@ -238,14 +239,13 @@ impl Keys {
             .iter()
             .filter(|key| key.attached_litterboxes.iter().any(|name| name == lbx_name));
 
-        let key_count = lbx_keys.clone().count();
-        if key_count < 1 {
-            println!("No keys attached to Litterbox. SSH agent will not be started!");
-            return Ok(());
-        }
-
-        println!("This Litterbox has keys attached. A password is needed to decrypt them.");
-        let keys_password = self.prompt_password()?;
+        let keys_password = if lbx_keys.clone().count() != 0 {
+            println!("This Litterbox has keys attached. A password is needed to decrypt them.");
+            self.prompt_password()?
+        } else {
+            log::info!("Litterbox does not have keys attached. Not prompting for password.");
+            String::default()
+        };
 
         let agent_locked = Arc::new(AtomicBool::new(false));
         let agent_path = start_ssh_agent(lbx_name, agent_locked.clone()).await?;
@@ -260,6 +260,7 @@ impl Keys {
         for key in lbx_keys {
             log::info!("Registering key into agent: {}", key.name);
 
+            assert!(!keys_password.is_empty());
             let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
                 .expect("Key should have been encrypted with user password.");
 

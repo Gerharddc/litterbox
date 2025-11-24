@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{LitterboxError, get_env};
 
-pub fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf, LitterboxError> {
+fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf, LitterboxError> {
     let home_dir = get_env("HOME")?;
     let home_path = Path::new(&home_dir);
     let full_path = home_path.join("Litterbox").join(relative_path);

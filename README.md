@@ -1,4 +1,5 @@
 <!-- exclude:start -->
+
 # Litterbox
 
 <p align="center">
@@ -6,6 +7,7 @@
 </p>
 
 [![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml) [![Tag on Version Change](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml) [![Publish Installer](https://github.com/Gerharddc/litterbox/actions/workflows/publish-installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-installer.yml) [![Publish Website](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml)
+
 <!-- exclude:end -->
 
 Litterbox is a Linux sandbox environment catered to the needs of developers. Its primary goal is to provide SOME isolation between a containerised development environment and a host system. Its secondary goal is to provide a repeatable and documented environment for development.
@@ -23,11 +25,12 @@ The isolation/sandboxing provided by Litterbox is limited and still leaves open 
 By design, Litterbox comes with AT LEAST the following limitation/vulnerabilities:
 
 <!-- TODO: document network stuff better since it is not always host network. -->
+
 - Everything running inside a Litterbox is running on top of your host kernel in the same way as normal applications. Thus, anything running inside the Litterbox could still exploit vulnerabilities in your host kernel to gain full access to your system.
 - Everything running inside a Litterbox has full access to your Wayland server in the same way as normal applications. Thus, anything running inside the Litterbox could still exploit vulnerabilities in your Wayland server to gain full access to your system.
 - Since applications running inside a Litterbox have normal access to your Wayland server, they have full access to things such as your clipboard so you should avoid copying any sensitive data around while you have a Litterbox running.
 - Litterbox relies on Podman as its container runtime. Thus, anything running inside a Litterbox could still exploit vulnerabilities in your Podman engine to gain full access to your system.
-- Litterbox does not provide ANY network isolation. Anything running inside a Litterbox has fully access to your host's network (including localhost) in the same way a normal application running on your system would. You should therefore be very careful to not have anything sensitive and/or vulnerable accessible on your network.
+- By default, Litterbox only provides limited network isolation. You should therefore be very careful to not have anything sensitive and/or vulnerable accessible on your network.
 - Litterbox hosts an SSH agent server powered by https://crates.io/crates/russh. The goal of this server is to provide restricted access to SSH keys inside a Litterbox through a shared socket. Thus, anything running inside a Litterbox could still exploit vulnerabilities in this library to gain full access to your system.
 
 N.B. it is again emphasised that Litterbox does not come with any warranties or guarantees. Using it is at your own risk and the Litterbox authors do not accept any libiality for damages that might be incurred.
@@ -36,13 +39,7 @@ N.B. it is again emphasised that Litterbox does not come with any warranties or 
 
 ## Installation
 
-Simply run the following commands:
-
-```bash
-curl -LO https://github.com/Gerharddc/litterbox/releases/latest/download/install.sh
-sudo chmod +x install.sh
-./install.sh
-```
+TODO: write section
 
 ---
 
@@ -74,7 +71,10 @@ Litterbox is most similar to Distrobox in terms of its design and functionality.
 
 Litterbox is still very much WIP with many missing features or required improvements. Following is a list of some important pieces that are still missing:
 
+- [ ] Add function to change password for stored keys.
+- [ ] Add function to approve some SSH agent requests for the duration of the session.
 - [ ] Add optional support for using host network.
+- [ ] Add optional support for port forwarding with the default "pasta" networking.
 - [ ] Use `udica` to improve isolation on SELinux environments.
 - [ ] Add automated testing.
 - [ ] Expose limited DBus access to allow applications to open URLs.

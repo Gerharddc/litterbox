@@ -7,10 +7,11 @@ use std::{
 };
 
 use crate::{
+    define_litterbox,
     errors::LitterboxError,
     extract_stdout,
     files::{SshSockFile, dockerfile_path, lbx_home_path},
-    gen_random_name, get_env, prepare_litterbox,
+    gen_random_name, get_env,
 };
 
 #[derive(Deserialize, Debug)]
@@ -139,7 +140,7 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
             "{} does not exist. Please make one or a use a provided template.",
             dockerfile_path.display()
         );
-        prepare_litterbox(lbx_name)?;
+        define_litterbox(lbx_name)?;
     }
 
     println!("Please pick a password for the user inside the Litterbox.");
@@ -171,7 +172,7 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
+pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     match get_container_id(lbx_name) {
         Ok(id) => return Err(LitterboxError::ContainerAlreadyExists(id)),
         Err(LitterboxError::NoContainerForName) => {}

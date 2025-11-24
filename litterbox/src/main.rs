@@ -89,7 +89,7 @@ impl Display for Template {
     }
 }
 
-fn prepare_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
+fn define_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
     let dockerfile = dockerfile_path(lbx_name)?;
     if dockerfile.exists() {
         return Err(LitterboxError::DockerfileAlreadyExists(dockerfile));
@@ -120,16 +120,16 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Prepare a new Litterbox with a template Dockerfile
+    /// Define a new Litterbox using a template Dockerfile
     #[clap(visible_alias("prep"))]
-    Prepare {
-        /// The name of the Litterbox to prepare
+    Define {
+        /// The name of the Litterbox to define
         name: String,
     },
 
-    /// Create a new Litterbox
-    Create {
-        /// The name of the Litterbox to create
+    /// Build a new Litterbox
+    Build {
+        /// The name of the Litterbox to build
         name: String,
 
         /// The username of the user in the Litterbox (defaults to "user")
@@ -184,15 +184,15 @@ enum Commands {
 fn run_menu() -> Result<(), LitterboxError> {
     let args = Args::parse();
     match args.command {
-        Commands::Prepare { name } => {
-            prepare_litterbox(&name)?;
-            println!("Litterbox prepared!");
+        Commands::Define { name } => {
+            define_litterbox(&name)?;
+            println!("Litterbox defined!");
         }
-        Commands::Create { name, user } => {
+        Commands::Build { name, user } => {
             let user = user.unwrap_or("user".to_string());
             build_image(&name, &user)?;
-            create_litterbox(&name, &user)?;
-            println!("Litterbox created!");
+            build_litterbox(&name, &user)?;
+            println!("Litterbox built!");
         }
         Commands::Enter { name } => {
             // We wait to create the runtime here since only this one command depends on it.

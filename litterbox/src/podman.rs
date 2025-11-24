@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Deserialize, Debug)]
 pub struct LitterboxLabels {
-    #[serde(rename = "io.litterbox.name")]
+    #[serde(rename = "work.litterbox.name")]
     pub name: String,
 }
 
@@ -57,7 +57,7 @@ pub fn list_containers() -> Result<AllContainers, LitterboxError> {
             "--format",
             "json",
             "--filter",
-            "label=io.litterbox.name",
+            "label=work.litterbox.name",
         ])
         .output()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
@@ -74,7 +74,7 @@ pub fn get_container_id(lbx_name: &str) -> Result<String, LitterboxError> {
             "--format",
             "json",
             "--filter",
-            &format!("label=io.litterbox.name={lbx_name}"),
+            &format!("label=work.litterbox.name={lbx_name}"),
         ])
         .output()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
@@ -99,7 +99,7 @@ pub fn get_image_id(lbx_name: &str) -> Result<String, LitterboxError> {
             "--format",
             "json",
             "--filter",
-            &format!("label=io.litterbox.name={lbx_name}"),
+            &format!("label=work.litterbox.name={lbx_name}"),
         ])
         .output()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
@@ -159,7 +159,7 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
             "-t",
             &image_name,
             "--label",
-            &format!("io.litterbox.name={lbx_name}"),
+            &format!("work.litterbox.name={lbx_name}"),
             "-f",
             dockerfile_path.to_str().expect("Invalid dockerfile_path."),
         ])
@@ -226,7 +226,7 @@ pub fn create_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError
                 litterbox_home.to_str().expect("Invalid litterbox_home.")
             ),
             "--label",
-            &format!("io.litterbox.name={lbx_name}"),
+            &format!("work.litterbox.name={lbx_name}"),
             &image_id,
         ])
         .spawn()

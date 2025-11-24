@@ -22,6 +22,7 @@ The isolation/sandboxing provided by Litterbox is limited and still leaves open 
 
 By design, Litterbox comes with AT LEAST the following limitation/vulnerabilities:
 
+<!-- TODO: document network stuff better since it is not always host network. -->
 - Everything running inside a Litterbox is running on top of your host kernel in the same way as normal applications. Thus, anything running inside the Litterbox could still exploit vulnerabilities in your host kernel to gain full access to your system.
 - Everything running inside a Litterbox has full access to your Wayland server in the same way as normal applications. Thus, anything running inside the Litterbox could still exploit vulnerabilities in your Wayland server to gain full access to your system.
 - Since applications running inside a Litterbox have normal access to your Wayland server, they have full access to things such as your clipboard so you should avoid copying any sensitive data around while you have a Litterbox running.

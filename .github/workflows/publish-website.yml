@@ -1,4 +1,6 @@
 name: Publish Website
+permissions:
+  contents: read
 
 on:
   push:

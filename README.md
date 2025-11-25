@@ -101,6 +101,7 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [ ] Expose limited DBus access to allow applications to open URLs.
 - [ ] Make it possible to Xorg apps to running via Wayback integration.
 - [ ] Add Dockerfile templates for more distros.
+- [ ] Release a version that uses Zenity for prompting for users that want a smaller binary. 
 
 ## Contributing
 

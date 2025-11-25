@@ -8,12 +8,15 @@ DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/$BINARY_NAME"
 
 ARCH="$(uname -m)"
 
-# --- ARM WARNING ---
+# --- ARCH CHECK (only x86-64 supported) ---
 case "$ARCH" in
-  arm*|aarch64)
+  x86_64|amd64)
+    # OK
+    ;;
+  *)
     echo "⚠ Unsupported architecture detected: $ARCH"
     echo ""
-    echo "The prebuilt 'litterbox' binary does not currently support ARM."
+    echo "Only x86-64 builds of 'litterbox' are currently available."
     echo "Please build from source instead:"
     echo ""
     echo "  git clone https://github.com/$REPO.git"
@@ -24,7 +27,7 @@ case "$ARCH" in
     exit 1
     ;;
 esac
-# --------------------
+# ------------------------------------------
 
 echo "Installing $BINARY_NAME from latest $REPO release..."
 echo ""
@@ -61,10 +64,10 @@ case ":$PATH:" in
     echo "  # or ~/.zshrc"
     echo ""
     echo "fish:"
-    echo "  set -U fish_user_paths \$HOME/.local/bin \$fish_user_paths"
+    echo "  fish_add_path \$HOME/.local/bin"
     echo ""
     echo "After updating PATH, restart your shell."
     ;;
 esac
 
-echo "Done."
+echo "Litterbox installed!"

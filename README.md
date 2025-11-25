@@ -36,7 +36,19 @@ N.B. it is again emphasised that Litterbox does not come with any warranties or 
 
 By installing Litterbox you agree that you have read all the warnings above and that you are using it at your own risk.
 
-TODO: write section
+To install Litterbox, simply run:
+
+```bash
+curl -fsSL https://litterbox.work/install.sh | sh
+```
+
+Unfortunately the installer currently only supports x86-64 binaries. If you are on a different platform, please build from source instead:
+
+```bash
+git clone https://github.com/Gerharddc/litterbox.git
+cd litterbox
+cargo build --release
+```
 
 ## Usage
 

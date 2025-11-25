@@ -1,4 +1,4 @@
-name: Publish Installer
+name: Make Release
 
 on:
   repository_dispatch:
@@ -14,24 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build release binaries
+      - name: Build Release Binaries
         run: cargo build --release
-
-      - name: Package binaries into tar.gz
-        run: |
-          mkdir dist
-          cp target/release/litterbox dist/
-          tar -czf payload.tar.gz -C dist .
-
-      - name: Create self-extracting installer
-        run: |
-          cat installer.sh payload.tar.gz > install.sh
-          chmod +x install.sh
 
       - uses: actions/upload-artifact@v4
         with:
-          name: installer
-          path: install.sh
+          name: litterbox
+          path: target/release/litterbox
 
   release:
     needs: build
@@ -40,10 +29,9 @@ jobs:
       contents: write
 
     steps:
-      - name: Download built installer
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: installer
+          name: litterbox
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -6,7 +6,7 @@
   <img src="litterbox/assets/cat.svg" alt="Centered SVG" width="200"/>
 </p>
 
-[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml) [![Tag on Version Change](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml) [![Publish Installer](https://github.com/Gerharddc/litterbox/actions/workflows/publish-installer.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-installer.yml) [![Publish Website](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml)
+[![Build and Test](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/build-and-test.yml) [![Tag on Version Change](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/tag-on-version-change.yml) [![Make Release](https://github.com/Gerharddc/litterbox/actions/workflows/make-release.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-installer.yml) [![Publish Website](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml/badge.svg)](https://github.com/Gerharddc/litterbox/actions/workflows/publish-website.yml)
 
 <!-- exclude:end -->
 
@@ -15,8 +15,6 @@ Litterbox is a Linux sandbox environment catered to the needs of developers. Its
 The isolation goal is to prevent rogue processes (which might arrive through a supply chain attack or similar) from gaining access to sensitive files on your home directory or access to all of your SSH keys. Litterbox achieves file system isolation by restricting a development container to only have access to a single folder on your host system (and nothing above it). SSH key protection is achieved with a custom SSH agent that only exposes a limited number of SSH keys to a single Litterbox and prompts the user (via a pop-up window) before completing any signing requests.
 
 N.B. Litterbox is free software that does not come with any warranty or guarantees. It is not an anti-malware solution and does not guarantee that your system will be protected from any attacks. Its goal is just to be BETTER THAN NOTHING but even that is not guaranteed. By using this software you agree that you are doing so at your own risk and take full responsibility for anything that might happen.
-
----
 
 ## Isolation limitations
 
@@ -34,15 +32,11 @@ By design, Litterbox comes with AT LEAST the following limitation/vulnerabilitie
 
 N.B. it is again emphasised that Litterbox does not come with any warranties or guarantees. Using it is at your own risk and the Litterbox authors do not accept any libiality for damages that might be incurred.
 
----
-
 ## Installation
 
 By installing Litterbox you agree that you have read all the warnings above and that you are using it at your own risk.
 
 TODO: write section
-
----
 
 ## Usage
 
@@ -66,8 +60,6 @@ If you want SSH keys to be available inside a Litterbox, simply run `litterbox k
 
 If you ever need to make a device (such as a virtual serial port) available inside a Litterbox, simply run `litterbox device LBX_NAME DEVICE_PATH`. This will make the device available inside the Litterbox by creating a device node inside its home directory. To remove the device again later, simply delete this file that got created. Please note that the device node corresponds to a device using its device number and not some higher level identifier. Thus, if you for instance unplug the device and plug in a new device of the same type, the device node will now point to the new device. So be careful what you expose inside the Litterbox!
 
----
-
 ## Comparison to alternatives
 
 ### Full Virtual Machine
@@ -84,8 +76,6 @@ Litterbox is very similar to DevContainers in that is uses Dockerfiles and conta
 
 Litterbox is most similar to Distrobox in terms of its design and functionality. The primary difference is that Distrobox does not aim to provide any isolation/sandboxing at all whereas Litterbox has a strong emphasis on providing it. Distrobox avoids sandboxing in order to provide more seamless integration between applications running inside the Distrobox and the host system. It tries to solve the problem of running software intended for a different distro as if it is running natively. Litterbox instead sacrificies much of the convenience that Distrobox provides in exchange for some isolation/sandboxing capabilities.
 
----
-
 ## TODO
 
 Litterbox is still very much WIP with many missing features or required improvements. Following is a list of some important pieces that are still missing:
@@ -99,8 +89,6 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [ ] Expose limited DBus access to allow applications to open URLs.
 - [ ] Make it possible to Xorg apps to running via Wayback integration.
 - [ ] Add Dockerfile templates for more distros.
-
----
 
 ## Contributing
 

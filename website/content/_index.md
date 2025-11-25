@@ -14,7 +14,7 @@
 
 {% end %}
 
----
+<br/>
 
 {{ svg(path="../../litterbox/assets/cat.svg") }}
 
@@ -23,5 +23,5 @@
 ---
 
 <div style="text-align:center;">
-© Gerhard de Clercq
+    © Gerhard de Clercq
 </div>

@@ -1,6 +1,10 @@
 use argon2::Argon2;
 use inquire::{MultiSelect, Password};
-use russh::keys::{Algorithm, PrivateKey, pkcs8::decode_pkcs8, pkcs8::encode_pkcs8_encrypted};
+use russh::keys::{
+    Algorithm, PrivateKey,
+    pkcs8::{decode_pkcs8, encode_pkcs8_encrypted},
+    ssh_key::LineEnding,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::{
     Arc,
@@ -276,17 +280,26 @@ impl Keys {
         Ok(())
     }
 
-    pub fn print(&self, key_name: &str) -> Result<(), LitterboxError> {
+    pub fn print(&self, key_name: &str, private: bool) -> Result<(), LitterboxError> {
         match self.key(key_name) {
             Some(key) => {
                 let keys_password = self.prompt_password()?;
                 let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
                     .expect("Key should have been encrypted with user password.");
-                let public = decrypted.public_key();
-                let openssh = public
-                    .to_openssh()
-                    .expect("OpenSSH format key should be valid.");
-                println!("{openssh}");
+
+                let openssh = if private {
+                    decrypted
+                        .to_openssh(LineEnding::LF)
+                        .expect("OpenSSH format key should be valid.")
+                } else {
+                    let public = decrypted.public_key();
+                    public
+                        .to_openssh()
+                        .expect("OpenSSH format key should be valid.")
+                        .into()
+                };
+
+                println!("{}", openssh.as_str());
                 Ok(())
             }
             None => Err(LitterboxError::KeyDoesNotExist(key_name.to_owned())),

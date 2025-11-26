@@ -259,6 +259,10 @@ enum KeyCommands {
     Print {
         /// The name of the key
         key_name: String,
+
+        /// Print the private key instead of the public key
+        #[clap(long)]
+        private: bool,
     },
 }
 
@@ -283,8 +287,8 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
         KeyCommands::Detach { key_name } => {
             keys.detach(&key_name)?;
         }
-        KeyCommands::Print { key_name } => {
-            keys.print(&key_name)?;
+        KeyCommands::Print { key_name, private } => {
+            keys.print(&key_name, private)?;
         }
     }
     Ok(())

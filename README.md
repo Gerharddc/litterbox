@@ -112,7 +112,7 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [ ] Improve documentation.
 - [ ] Add proper automated testing.
 - [x] Add function to change password for stored keys.
-- [ ] Add function to approve some SSH agent requests for the duration of the session.
+- [x] Add function to approve some SSH agent requests for the duration of the session.
 - [ ] Add optional support for using host network.
 - [ ] Add optional support for port forwarding with the default "pasta" networking.
 - [ ] Use `udica` to improve isolation on SELinux environments.

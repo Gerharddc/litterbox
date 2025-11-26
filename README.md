@@ -109,16 +109,18 @@ Litterbox is most similar to Distrobox in terms of its design and functionality.
 
 Litterbox is still very much WIP with many missing features or required improvements. Following is a list of some important pieces that are still missing:
 
+- [ ] Improve documentation.
+- [ ] Add automated testing.
 - [ ] Add function to change password for stored keys.
 - [ ] Add function to approve some SSH agent requests for the duration of the session.
 - [ ] Add optional support for using host network.
 - [ ] Add optional support for port forwarding with the default "pasta" networking.
 - [ ] Use `udica` to improve isolation on SELinux environments.
-- [ ] Add automated testing.
-- [ ] Expose limited DBus access to allow applications to open URLs.
+- [ ] Expose limited DBus access to allow applications to open URLs. Likely using [dbus-proxy](https://github.com/Pelagicore/dbus-proxy).
 - [ ] Make it possible to Xorg apps to running via Wayback integration.
 - [ ] Add Dockerfile templates for more distros.
 - [ ] Release a version that uses Zenity for prompting for users that want a smaller binary.
+- [ ] Try to provide a VM option using [crosvm's Wayland functionality](https://crosvm.dev/book/devices/wayland.html).
 
 ## Contributing
 

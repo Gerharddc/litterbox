@@ -54,16 +54,26 @@ struct Key {
 
 impl Key {
     fn new(name: &str, password: &str) -> Self {
-        let key = gen_key();
-
-        let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &key)
-            .expect("Keys should be encryptable");
-
         Self {
             name: name.to_owned(),
-            encrypted_key,
+            encrypted_key: Self::encrypt(&gen_key(), password),
             attached_litterboxes: Vec::new(),
         }
+    }
+
+    fn encrypt(private_key: &PrivateKey, password: &str) -> Vec<u8> {
+        encode_pkcs8_encrypted(password.as_bytes(), 10, private_key)
+            .expect("Keys should be encryptable")
+    }
+
+    fn decrypt(&self, password: &str) -> PrivateKey {
+        decode_pkcs8(&self.encrypted_key, Some(password.as_bytes()))
+            .expect("Key should have been encrypted with user password.")
+    }
+
+    fn change_password(&mut self, old_password: &str, new_password: &str) {
+        let decrypted = self.decrypt(old_password);
+        self.encrypted_key = Self::encrypt(&decrypted, new_password);
     }
 }
 
@@ -133,6 +143,21 @@ impl Keys {
         let table_rows: Vec<KeyTableRow> = self.keys.iter().map(|c| c.into()).collect();
         let table = Table::new(table_rows);
         println!("{table}");
+    }
+
+    pub fn change_password(&mut self) -> Result<(), LitterboxError> {
+        let old_password = self.prompt_password()?;
+        let new_password = Password::new("New Key Manager Password")
+            .with_display_mode(inquire::PasswordDisplayMode::Masked)
+            .prompt()
+            .map_err(LitterboxError::PromptError)?;
+
+        for key in &mut self.keys {
+            key.change_password(&old_password, &new_password);
+        }
+        self.password_hash = hash_password(&new_password);
+        self.save_to_file()?;
+        Ok(())
     }
 
     fn prompt_password(&self) -> Result<String, LitterboxError> {
@@ -265,9 +290,7 @@ impl Keys {
             log::info!("Registering key into agent: {}", key.name);
 
             assert!(!keys_password.is_empty());
-            let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
-                .expect("Key should have been encrypted with user password.");
-
+            let decrypted = key.decrypt(&keys_password);
             client
                 .add_identity(&decrypted, &[])
                 .await
@@ -284,8 +307,7 @@ impl Keys {
         match self.key(key_name) {
             Some(key) => {
                 let keys_password = self.prompt_password()?;
-                let decrypted = decode_pkcs8(&key.encrypted_key, Some(keys_password.as_bytes()))
-                    .expect("Key should have been encrypted with user password.");
+                let decrypted = key.decrypt(&keys_password);
 
                 let openssh = if private {
                     decrypted
@@ -324,13 +346,14 @@ mod tests {
     #[test]
     fn can_encrypt_and_decrypt_password() {
         let password = "SomePassword";
-
         let original_key = gen_key();
-        let encrypted_key = encode_pkcs8_encrypted(password.as_bytes(), 10, &original_key)
-            .expect("Key should be encryptable.");
-        let decrypted_key = decode_pkcs8(&encrypted_key, Some(password.as_bytes()))
-            .expect("Key should have been encrypted with user password.");
 
+        let encrypted_key = Key {
+            name: String::new(),
+            encrypted_key: Key::encrypt(&original_key, password),
+            attached_litterboxes: Vec::new(),
+        };
+        let decrypted_key = encrypted_key.decrypt(password);
         assert_eq!(decrypted_key, original_key);
     }
 }

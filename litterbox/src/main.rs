@@ -264,6 +264,9 @@ enum KeyCommands {
         #[clap(long)]
         private: bool,
     },
+
+    /// Change the password used to encrypt passwords for storage
+    ChangePassword {},
 }
 
 fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
@@ -289,6 +292,9 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
         }
         KeyCommands::Print { key_name, private } => {
             keys.print(&key_name, private)?;
+        }
+        KeyCommands::ChangePassword {} => {
+            keys.change_password()?;
         }
     }
     Ok(())

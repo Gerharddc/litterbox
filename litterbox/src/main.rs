@@ -171,11 +171,11 @@ enum Commands {
     /// Ask the user to confirm a request (for internal use)
     #[clap(hide = true)]
     Confirm {
-        // What the user needs to confirm
+        // The request that the user needs to confirm
         #[arg(long)]
-        message: String,
+        request: String,
 
-        // THe name of the litterbox sending the request
+        // The name of the litterbox sending the request
         #[arg(long)]
         lbx_name: String,
     },
@@ -215,8 +215,8 @@ fn run_menu() -> Result<(), LitterboxError> {
             let dest_path = attach_device(&name, &path)?;
             println!("Device attached at {:#?}!", dest_path);
         }
-        Commands::Confirm { message, lbx_name } => {
-            prompt_confirmation(&message, &lbx_name);
+        Commands::Confirm { request, lbx_name } => {
+            prompt_confirmation(&request, &lbx_name);
         }
     }
     Ok(())

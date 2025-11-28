@@ -6,15 +6,12 @@ use russh::keys::{
     ssh_key::LineEnding,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
+use std::sync::{Arc, atomic::Ordering};
 use tabled::{Table, Tabled};
 
 use crate::{
     LitterboxError,
-    agent::start_ssh_agent,
+    agent::{AgentState, start_ssh_agent},
     files::{keyfile_path, read_file, write_file},
 };
 
@@ -276,8 +273,8 @@ impl Keys {
             String::default()
         };
 
-        let agent_locked = Arc::new(AtomicBool::new(false));
-        let agent_path = start_ssh_agent(lbx_name, agent_locked.clone()).await?;
+        let agent_state = Arc::new(AgentState::default());
+        let agent_path = start_ssh_agent(lbx_name, agent_state.clone()).await?;
         log::debug!("agent_path: {:#?}", agent_path);
 
         let stream = tokio::net::UnixStream::connect(&agent_path)
@@ -298,7 +295,7 @@ impl Keys {
         }
 
         // Ensure the agent will now start prompting for authorization
-        agent_locked.store(true, Ordering::SeqCst);
+        agent_state.locked.store(true, Ordering::SeqCst);
 
         Ok(())
     }

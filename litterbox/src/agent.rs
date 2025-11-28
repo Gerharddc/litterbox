@@ -1,7 +1,6 @@
 use eframe::egui;
 use futures::Future;
 use russh::keys::*;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,8 +15,7 @@ use crate::files::SshSockFile;
 struct AskAgent {
     lbx_name: String,
     litterbox_path: String,
-    agent_locked: Arc<AtomicBool>,
-    approved_for_session: HashSet<UserRequest>,
+    agent_state: Arc<AgentState>,
 }
 
 #[derive(Debug, EnumString, Display)]
@@ -27,7 +25,7 @@ enum UserResponse {
     ApprovedForSession,
 }
 
-#[derive(PartialEq, Eq, Hash, Display, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Display, Clone, Copy, EnumString)]
 pub enum UserRequest {
     RequestKeys,
     AddKeys,
@@ -59,25 +57,31 @@ impl agent::server::Agent for AskAgent {
         self,
         _: std::sync::Arc<PrivateKey>,
     ) -> Box<dyn Future<Output = (Self, bool)> + Send + Unpin> {
-        println!("TODO: Confirm private key!");
-        Box::new(futures::future::ready((self, true)))
+        todo!("Confirm private key")
     }
 
     async fn confirm_request(&self, msg: agent::server::MessageType) -> bool {
-        if !self.agent_locked.load(Ordering::SeqCst) {
+        let request: UserRequest = msg.into();
+
+        if !self.agent_state.locked.load(Ordering::SeqCst) {
+            log::debug!(
+                "Agent not locked, request automatically approved: {}",
+                request
+            );
             return true;
         }
 
-        let request: UserRequest = msg.into();
-        if self.approved_for_session.contains(&request) {
-            log::info!("Request approved for session, approving: {request}");
+        if request == UserRequest::RequestKeys
+            && self.agent_state.approved_for_session.load(Ordering::SeqCst)
+        {
+            log::info!("RequestKeys approved for session, not prompting.");
             return true;
         }
 
         let output = Command::new(self.litterbox_path.clone())
             .args([
                 "confirm",
-                "--message",
+                "--request",
                 &request.to_string(),
                 "--lbx-name",
                 &self.lbx_name,
@@ -96,9 +100,12 @@ impl agent::server::Agent for AskAgent {
             match resp {
                 UserResponse::Approved => true,
                 UserResponse::Declined => false,
-
-                // FIXME: we need to store this approval
-                UserResponse::ApprovedForSession => true,
+                UserResponse::ApprovedForSession => {
+                    self.agent_state
+                        .approved_for_session
+                        .store(true, Ordering::SeqCst);
+                    true
+                }
             }
         } else {
             log::error!("Unexpected confirmation response: {}", resp_str);
@@ -109,7 +116,7 @@ impl agent::server::Agent for AskAgent {
 
 struct ConfirmationDialog<'a> {
     user_response: &'a mut UserResponse,
-    confirmation_msg: &'a str,
+    user_request: &'a UserRequest,
     lbx_name: &'a str,
 }
 
@@ -125,7 +132,7 @@ impl eframe::App for ConfirmationDialog<'_> {
             ui.add(egui::Image::new(egui::include_image!("../assets/cat.svg")).max_width(400.0));
             ui.horizontal(|ui| {
                 ui.label("Request:");
-                ui.label(egui::RichText::new(self.confirmation_msg).strong());
+                ui.label(egui::RichText::new(self.user_request.to_string()).strong());
             });
 
             ui.horizontal(|ui| {
@@ -139,7 +146,8 @@ impl eframe::App for ConfirmationDialog<'_> {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
 
-                if ui.button("Approve for Session").clicked() {
+                let may_approve_for_session = *self.user_request == UserRequest::RequestKeys;
+                if may_approve_for_session && ui.button("Approve for Session").clicked() {
                     *self.user_response = UserResponse::ApprovedForSession;
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
@@ -148,9 +156,26 @@ impl eframe::App for ConfirmationDialog<'_> {
     }
 }
 
+pub struct AgentState {
+    /// When the agent is locked, uesrs will need to approve requests
+    pub locked: AtomicBool,
+
+    /// When set, users no longer need to approve requests to list keys
+    pub approved_for_session: AtomicBool,
+}
+
+impl Default for AgentState {
+    fn default() -> Self {
+        Self {
+            locked: AtomicBool::new(false),
+            approved_for_session: AtomicBool::new(false),
+        }
+    }
+}
+
 pub async fn start_ssh_agent(
     lbx_name: &str,
-    agent_locked: Arc<AtomicBool>,
+    agent_state: Arc<AgentState>,
 ) -> Result<PathBuf, LitterboxError> {
     let mut args = std::env::args();
     let litterbox_path = args.next().expect("Binary path should be defined.");
@@ -175,8 +200,7 @@ pub async fn start_ssh_agent(
             AskAgent {
                 lbx_name,
                 litterbox_path,
-                agent_locked,
-                approved_for_session: HashSet::new(),
+                agent_state,
             },
         )
         .await
@@ -185,11 +209,15 @@ pub async fn start_ssh_agent(
     Ok(agent_path)
 }
 
-pub fn prompt_confirmation(confirmation_msg: &str, lbx_name: &str) {
+pub fn prompt_confirmation(request: &str, lbx_name: &str) {
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport.inner_size = Some((270.0, 340.0).into());
 
+    let user_request = request
+        .parse()
+        .expect("User request input should be valid.");
     let mut user_response = UserResponse::Declined;
+
     let run_result = eframe::run_native(
         "Litterbox",
         native_options,
@@ -198,7 +226,7 @@ pub fn prompt_confirmation(confirmation_msg: &str, lbx_name: &str) {
 
             Ok(Box::new(ConfirmationDialog {
                 user_response: &mut user_response,
-                confirmation_msg,
+                user_request: &user_request,
                 lbx_name,
             }))
         }),

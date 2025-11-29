@@ -1,6 +1,6 @@
 title = "Litterbox"
 base_url = "https://litterbox.work"
-description = "Somewhat Isolated Development Containers"
+description = "Somewhat Isolated Development Environments"
 author = "Gerhard de Clercq"
 
 theme = "duckquill"

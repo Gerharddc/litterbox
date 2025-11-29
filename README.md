@@ -29,6 +29,7 @@ By design, Litterbox comes with AT LEAST the following limitation/vulnerabilitie
 - By default, Litterbox only provides limited network isolation. You should therefore be very careful to not have anything sensitive and/or vulnerable accessible on your network.
 - Litterbox hosts an SSH agent server powered by [russh](https://crates.io/crates/russh). The goal of this server is to provide restricted access to SSH keys inside a Litterbox through a shared socket. Thus, anything running inside a Litterbox could still exploit vulnerabilities in this library to gain full access to your system.
 - When you expose a device inside a Litterbox, you grant everything inside the Litterbox full access to that device.
+- Currently Litterbox has many external dependencies which unfortunately makes Litterbox itself vulnerable to supply chain attacks. A long-term goal is thus to reduce the number of external dependencies to a bare minimum.
 
 N.B. it is again emphasised that Litterbox does not come with any warranties or guarantees. Using it is at your own risk and the Litterbox authors do not accept any libiality for damages that might be incurred.
 
@@ -118,8 +119,9 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [ ] Use `udica` to improve isolation on SELinux environments.
 - [ ] Expose limited DBus access to allow applications to open URLs. Likely using [dbus-proxy](https://github.com/Pelagicore/dbus-proxy).
 - [ ] Make it possible to Xorg apps to running via Wayback integration.
+- [ ] Add support for running on Windows via WSL.
 - [ ] Add Dockerfile templates for more distros.
-- [ ] Add support for more platforms to the installer.
+- [ ] Add support for more hardware platforms to the installer.
 - [ ] Release a version that uses Zenity for prompting for users that want a smaller binary.
 - [ ] Try to provide a VM option using [crosvm's Wayland functionality](https://crosvm.dev/book/devices/wayland.html).
 

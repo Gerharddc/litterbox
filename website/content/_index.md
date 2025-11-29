@@ -1,5 +1,5 @@
 +++
-title = "Litterbox - Somewhat Isolated Development Containers"
+title = "Litterbox - Somewhat Isolated Development Environments"
 +++
 
 {% crt() %}

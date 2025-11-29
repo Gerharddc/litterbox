@@ -4,6 +4,7 @@ use russh::keys::*;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use strum_macros::{Display, EnumString};
 use tokio::process::Command;
 
 use crate::errors::LitterboxError;
@@ -14,7 +15,41 @@ use crate::files::SshSockFile;
 struct AskAgent {
     lbx_name: String,
     litterbox_path: String,
-    agent_locked: Arc<AtomicBool>,
+    agent_state: Arc<AgentState>,
+}
+
+#[derive(Debug, EnumString, Display)]
+enum UserResponse {
+    Approved,
+    Declined,
+    ApprovedForSession,
+}
+
+#[derive(PartialEq, Eq, Hash, Display, Clone, Copy, EnumString)]
+pub enum UserRequest {
+    RequestKeys,
+    AddKeys,
+    RemoveKeys,
+    RemoveAllKeys,
+    Sign,
+    Lock,
+    Unlock,
+}
+
+impl From<agent::server::MessageType> for UserRequest {
+    fn from(value: agent::server::MessageType) -> Self {
+        use agent::server::MessageType;
+
+        match value {
+            MessageType::RequestKeys => UserRequest::RequestKeys,
+            MessageType::AddKeys => UserRequest::AddKeys,
+            MessageType::RemoveKeys => UserRequest::RemoveKeys,
+            MessageType::RemoveAllKeys => UserRequest::RemoveAllKeys,
+            MessageType::Sign => UserRequest::Sign,
+            MessageType::Lock => UserRequest::Lock,
+            MessageType::Unlock => UserRequest::Unlock,
+        }
+    }
 }
 
 impl agent::server::Agent for AskAgent {
@@ -22,32 +57,32 @@ impl agent::server::Agent for AskAgent {
         self,
         _: std::sync::Arc<PrivateKey>,
     ) -> Box<dyn Future<Output = (Self, bool)> + Send + Unpin> {
-        println!("TODO: Confirm private key!");
-        Box::new(futures::future::ready((self, true)))
+        todo!("Confirm private key")
     }
 
     async fn confirm_request(&self, msg: agent::server::MessageType) -> bool {
-        use agent::server::MessageType;
+        let request: UserRequest = msg.into();
 
-        if !self.agent_locked.load(Ordering::SeqCst) {
+        if !self.agent_state.locked.load(Ordering::SeqCst) {
+            log::debug!(
+                "Agent not locked, request automatically approved: {}",
+                request
+            );
             return true;
         }
 
-        let confirmation_msg = match msg {
-            MessageType::RequestKeys => "RequestKeys",
-            MessageType::AddKeys => "AddKeys",
-            MessageType::RemoveKeys => "RemoveKeys",
-            MessageType::RemoveAllKeys => "RemoveAllKeys",
-            MessageType::Sign => "Sign",
-            MessageType::Lock => "Lock",
-            MessageType::Unlock => "Unlock",
-        };
+        if request == UserRequest::RequestKeys
+            && self.agent_state.approved_for_session.load(Ordering::SeqCst)
+        {
+            log::info!("RequestKeys approved for session, not prompting.");
+            return true;
+        }
 
         let output = Command::new(self.litterbox_path.clone())
             .args([
                 "confirm",
-                "--message",
-                confirmation_msg,
+                "--request",
+                &request.to_string(),
                 "--lbx-name",
                 &self.lbx_name,
             ])
@@ -59,41 +94,61 @@ impl agent::server::Agent for AskAgent {
             extract_stdout(&output).expect("Litterbox should return valid output to itself.");
 
         // We ignore the last character which will be a newline
-        match &stdout[..(stdout.len() - 1)] {
-            USER_ACCEPTED => true,
-            USER_DECLINED => false,
-            _other => {
-                log::error!("Unexpected confirmation response: {}", _other);
-                false
+        let resp_str = &stdout[..(stdout.len() - 1)];
+
+        if let Ok(resp) = resp_str.parse() {
+            match resp {
+                UserResponse::Approved => true,
+                UserResponse::Declined => false,
+                UserResponse::ApprovedForSession => {
+                    self.agent_state
+                        .approved_for_session
+                        .store(true, Ordering::SeqCst);
+                    true
+                }
             }
+        } else {
+            log::error!("Unexpected confirmation response: {}", resp_str);
+            false
         }
     }
 }
 
 struct ConfirmationDialog<'a> {
-    user_response: &'a mut bool,
-    confirmation_msg: &'a str,
+    user_response: &'a mut UserResponse,
+    user_request: &'a UserRequest,
     lbx_name: &'a str,
 }
 
 impl eframe::App for ConfirmationDialog<'_> {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Confirm SSH Request");
+            ui.heading("New SSH Request");
+            ui.horizontal(|ui| {
+                ui.label("From Litterbox:");
+                ui.label(egui::RichText::new(self.lbx_name).strong());
+            });
 
             ui.add(egui::Image::new(egui::include_image!("../assets/cat.svg")).max_width(400.0));
-
-            ui.label(format!("Request: {}", self.confirmation_msg));
-            ui.label(format!("From Litterbox: {}", self.lbx_name));
+            ui.horizontal(|ui| {
+                ui.label("Request:");
+                ui.label(egui::RichText::new(self.user_request.to_string()).strong());
+            });
 
             ui.horizontal(|ui| {
-                if ui.button("Yes").clicked() {
-                    *self.user_response = true;
+                if ui.button("Approve").clicked() {
+                    *self.user_response = UserResponse::Approved;
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
 
-                if ui.button("No").clicked() {
-                    *self.user_response = false;
+                if ui.button("Decline").clicked() {
+                    *self.user_response = UserResponse::Declined;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+
+                let may_approve_for_session = *self.user_request == UserRequest::RequestKeys;
+                if may_approve_for_session && ui.button("Approve for Session").clicked() {
+                    *self.user_response = UserResponse::ApprovedForSession;
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             });
@@ -101,12 +156,26 @@ impl eframe::App for ConfirmationDialog<'_> {
     }
 }
 
-const USER_ACCEPTED: &str = "accepted";
-const USER_DECLINED: &str = "declined";
+pub struct AgentState {
+    /// When the agent is locked, uesrs will need to approve requests
+    pub locked: AtomicBool,
+
+    /// When set, users no longer need to approve requests to list keys
+    pub approved_for_session: AtomicBool,
+}
+
+impl Default for AgentState {
+    fn default() -> Self {
+        Self {
+            locked: AtomicBool::new(false),
+            approved_for_session: AtomicBool::new(false),
+        }
+    }
+}
 
 pub async fn start_ssh_agent(
     lbx_name: &str,
-    agent_locked: Arc<AtomicBool>,
+    agent_state: Arc<AgentState>,
 ) -> Result<PathBuf, LitterboxError> {
     let mut args = std::env::args();
     let litterbox_path = args.next().expect("Binary path should be defined.");
@@ -131,7 +200,7 @@ pub async fn start_ssh_agent(
             AskAgent {
                 lbx_name,
                 litterbox_path,
-                agent_locked,
+                agent_state,
             },
         )
         .await
@@ -140,11 +209,15 @@ pub async fn start_ssh_agent(
     Ok(agent_path)
 }
 
-pub fn prompt_confirmation(confirmation_msg: &str, lbx_name: &str) {
+pub fn prompt_confirmation(request: &str, lbx_name: &str) {
     let mut native_options = eframe::NativeOptions::default();
-    native_options.viewport.inner_size = Some((250.0, 320.0).into());
+    native_options.viewport.inner_size = Some((270.0, 340.0).into());
 
-    let mut user_response = false;
+    let user_request = request
+        .parse()
+        .expect("User request input should be valid.");
+    let mut user_response = UserResponse::Declined;
+
     let run_result = eframe::run_native(
         "Litterbox",
         native_options,
@@ -153,7 +226,7 @@ pub fn prompt_confirmation(confirmation_msg: &str, lbx_name: &str) {
 
             Ok(Box::new(ConfirmationDialog {
                 user_response: &mut user_response,
-                confirmation_msg,
+                user_request: &user_request,
                 lbx_name,
             }))
         }),
@@ -163,10 +236,5 @@ pub fn prompt_confirmation(confirmation_msg: &str, lbx_name: &str) {
         println!("Error running ConfirmationDialog: {:#?}", e);
     }
 
-    let reponse = if user_response {
-        USER_ACCEPTED
-    } else {
-        USER_DECLINED
-    };
-    println!("{}", reponse);
+    println!("{user_response}");
 }

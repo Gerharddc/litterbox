@@ -1,7 +1,9 @@
 use inquire::{Confirm, Password};
+use inquire_derive::Selectable;
 use log::{debug, info};
 use serde::Deserialize;
 use std::{
+    fmt::Display,
     fs,
     process::{Child, Command},
 };
@@ -172,6 +174,37 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
+#[derive(Debug, Copy, Clone, Selectable)]
+enum NetworkMode {
+    Pasta,
+    PastaWithForwarding,
+    Host,
+}
+
+impl NetworkMode {
+    fn name(&self) -> &'static str {
+        match self {
+            NetworkMode::Pasta => "Pasta (isolated user-mode networking stack)",
+            NetworkMode::PastaWithForwarding => "Pasta with port forwarding (host to container)",
+            NetworkMode::Host => "Host networking (i.e. NO ISOLATION)",
+        }
+    }
+
+    fn podman_args(&self) -> &'static str {
+        match self {
+            NetworkMode::Pasta => "pasta",
+            NetworkMode::PastaWithForwarding => "pasta:-t,auto,-u,auto",
+            NetworkMode::Host => "host",
+        }
+    }
+}
+
+impl Display for NetworkMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
 pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     match get_container_id(lbx_name) {
         Ok(id) => return Err(LitterboxError::ContainerAlreadyExists(id)),
@@ -195,7 +228,9 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         .to_str()
         .expect("SSH socket path should be valid string");
 
-    // FIXME: add option for host network
+    let network_mode = NetworkMode::select("Choose the network mode for this Litterbox:")
+        .prompt()
+        .map_err(LitterboxError::PromptError)?;
 
     let child = Command::new("podman")
         .args([
@@ -208,6 +243,8 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
             "/dev/dri",
             "--hostname",
             &format!("lbx-{lbx_name}"),
+            "--network",
+            network_mode.podman_args(),
             "--security-opt=label=disable", // TODO: use udica to make better rules instead
             "-e",
             "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
@@ -220,7 +257,7 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
             "-v",
             &format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}"),
             "-v",
-            "/dev/dri:/dev/dri",
+            "/dev/dri:/dev/dri", // TODO: this does not work on WSL as the display device is different there
             "-v",
             &format!(
                 "{}:/home/{user}",

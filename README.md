@@ -114,11 +114,11 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [ ] Add proper automated testing.
 - [x] Add function to change password for stored keys.
 - [x] Add function to approve some SSH agent requests for the duration of the session.
-- [ ] Add optional support for using host network.
-- [ ] Add optional support for port forwarding with the default "pasta" networking.
+- [x] Add optional support for using host network.
+- [x] Add optional support for port forwarding with the default "pasta" networking.
 - [ ] Use `udica` to improve isolation on SELinux environments.
 - [ ] Expose limited DBus access to allow applications to open URLs. Likely using [dbus-proxy](https://github.com/Pelagicore/dbus-proxy).
-- [ ] Make it possible to Xorg apps to running via Wayback integration.
+- [ ] Make it possible for Xorg apps to run via Wayback integration.
 - [ ] Add support for running on Windows via WSL.
 - [ ] Add Dockerfile templates for more distros.
 - [ ] Add support for more hardware platforms to the installer.

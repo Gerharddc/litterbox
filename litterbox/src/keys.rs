@@ -2,6 +2,7 @@ use argon2::Argon2;
 use inquire::{MultiSelect, Password};
 use russh::keys::{
     Algorithm, PrivateKey,
+    agent::Constraint,
     pkcs8::{decode_pkcs8, encode_pkcs8_encrypted},
     ssh_key::LineEnding,
 };
@@ -288,8 +289,15 @@ impl Keys {
 
             assert!(!keys_password.is_empty());
             let decrypted = key.decrypt(&keys_password);
+
+            const DETAILS: &[u8] = "Litterbox key".as_bytes();
+            let key_name = Constraint::Extensions {
+                name: key.name.as_bytes().to_vec(),
+                details: DETAILS.to_vec(),
+            };
+
             client
-                .add_identity(&decrypted, &[])
+                .add_identity(&decrypted, &[key_name])
                 .await
                 .map_err(LitterboxError::RegisterKey)?;
         }

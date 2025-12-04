@@ -241,9 +241,13 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
     let support_tuntap =
         Confirm::new("Do you want to support TUN/TAP creation inside this Litterbox?")
             .with_default(false)
-            .with_help_message(
-                "This will enable `CAP_NET_ADMIN` and expose `/dev/net/tun` to the container.",
-            )
+            .with_help_message("This will enable `CAP_NET_ADMIN` and expose `/dev/net/tun`.")
+            .prompt()
+            .map_err(LitterboxError::PromptError)?;
+
+    let enable_packet_forwarding =
+        Confirm::new("Do you want to enable packet forwarding inside this Litterbox?")
+            .with_default(false)
             .prompt()
             .map_err(LitterboxError::PromptError)?;
 
@@ -290,6 +294,16 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
     if support_ping {
         debug!("Appending ping args");
         full_args.push("--cap-add=NET_RAW");
+    }
+
+    if enable_packet_forwarding {
+        debug!("Appending packet forwarding args");
+        full_args.extend_from_slice(&[
+            "--sysctl",
+            "net.ipv4.ip_forward=1",
+            "--sysctl",
+            "net.ipv6.conf.all.forwarding=1",
+        ]);
     }
 
     // It's best to have the image_id as the final argument

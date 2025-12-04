@@ -1,9 +1,6 @@
 # syntax=docker/dockerfile:1.4
 FROM ubuntu:latest
 
-ARG USER
-ARG PASSWORD
-
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN apt-get update && \
     apt-get install -y sudo weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools curl iproute2
@@ -13,6 +10,10 @@ RUN apt-get install -y fish
 
 # Install development tools (ADAPT TO YOUR OWN NEEDS)
 RUN apt-get install -y clang cmake ninja-build g++
+
+# We put these args later to avoid excessive rebuilding
+ARG USER
+ARG PASSWORD
 
 # Setup non-root user with a password for added security
 RUN usermod -l $USER ubuntu -m -d /home/$USER && \

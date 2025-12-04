@@ -19,10 +19,8 @@ pub enum LitterboxError {
     CreateFailed(io::Error, PathBuf),
     NoContainerForName,
     MultipleContainersForName,
-    ContainerAlreadyExists(String),
     NoImageForName,
     MultipleImagesForName,
-    ImageAlreadyExists(String),
     DockerfileAlreadyExists(PathBuf),
     PromptError(InquireError),
     FailedToSerialise(&'static str),
@@ -34,6 +32,7 @@ pub enum LitterboxError {
     ConnectSocket(io::Error),
     RegisterKey(russh::keys::Error),
     ParseKeyFile(ron::error::SpannedError),
+    ReplaceNotAllowed,
 }
 
 impl LitterboxError {
@@ -41,114 +40,109 @@ impl LitterboxError {
         match self {
             LitterboxError::RunCommand(e, cmd) => {
                 error!("{:#?}", e);
-                eprintln!("Could not run {cmd} command. Perhaps it is not installed?");
+                error!("Could not run {cmd} command. Perhaps it is not installed?");
             }
             LitterboxError::CommandFailed(exit_status, cmd) => {
                 error!("error code: {:#?}", exit_status);
-                eprintln!("{cmd} command failed with non-zero error code.");
+                error!("{cmd} command failed with non-zero error code.");
             }
             LitterboxError::PodmanError(exit_status, stderr) => {
                 error!("error code: {:#?}, message: {stderr}", exit_status);
-                eprintln!("Podman command returned non-zero error code.");
+                error!("Podman command returned non-zero error code.");
             }
             LitterboxError::ParseOutput(e) => {
                 error!("{:#?}", e);
-                eprintln!("Could not parse output from podman.");
+                error!("Could not parse output from podman.");
             }
             LitterboxError::Deserialize(e) => {
                 error!("{:#?}", e);
-                eprintln!("Could not deserialize output from podman. Unexpected format.");
+                error!("Could not deserialize output from podman. Unexpected format.");
             }
             LitterboxError::EnvVarUndefined(name) => {
-                eprintln!("Environment variable not defined: {name}.")
+                error!("Environment variable not defined: {name}.")
             }
             LitterboxError::EnvVarInvalid(name, value) => {
                 error!("{:#?}", value);
-                eprintln!("Environment variable not a valid string: {name}.");
+                error!("Environment variable not a valid string: {name}.");
             }
             LitterboxError::DirUncreatable(error, dir) => {
                 error!("{:#?}", error);
-                eprintln!("Directory could not be created: {}.", dir.display());
+                error!("Directory could not be created: {}.", dir.display());
             }
             LitterboxError::WriteFailed(error, path) => {
                 error!("{:#?}", error);
-                eprintln!("File could not be written: {}.", path.display());
+                error!("File could not be written: {}.", path.display());
             }
             LitterboxError::ReadFailed(error, path) => {
                 error!("{:#?}", error);
-                eprintln!("File could not be read: {}.", path.display());
+                error!("File could not be read: {}.", path.display());
             }
             LitterboxError::ExistsFailed(error, path) => {
                 error!("{:#?}", error);
-                eprintln!("Could not check if file exists: {}.", path.display());
+                error!("Could not check if file exists: {}.", path.display());
             }
             LitterboxError::RemoveFailed(error, path) => {
                 error!("{:#?}", error);
-                eprintln!("Could not remove file: {}.", path.display());
+                error!("Could not remove file: {}.", path.display());
             }
             LitterboxError::CreateFailed(error, path) => {
                 error!("{:#?}", error);
-                eprintln!("Could not create file: {}.", path.display());
+                error!("Could not create file: {}.", path.display());
             }
             LitterboxError::NoContainerForName => {
-                eprintln!("A container with the specified Litterbox name could not be found.");
+                error!("A container with the specified Litterbox name could not be found.");
             }
             LitterboxError::MultipleContainersForName => {
-                eprintln!("Multiple containers were found with the specified Litterbox name.");
-            }
-            LitterboxError::ContainerAlreadyExists(id) => {
-                eprintln!("Container for Litterbox already exists with id: {id}.");
+                error!("Multiple containers were found with the specified Litterbox name.");
             }
             LitterboxError::NoImageForName => {
-                eprintln!("An image with the specified Litterbox name could not be found.");
+                error!("An image with the specified Litterbox name could not be found.");
             }
             LitterboxError::MultipleImagesForName => {
-                eprintln!("Multiple images were found with the specified Litterbox name.");
-            }
-            LitterboxError::ImageAlreadyExists(id) => {
-                eprintln!("Image for Litterbox already exists with id: {id}.");
+                error!("Multiple images were found with the specified Litterbox name.");
             }
             LitterboxError::DockerfileAlreadyExists(path) => {
-                eprintln!(
+                error!(
                     "Dockerfile for Litterbox already exists at {}.",
                     path.display()
                 );
             }
             LitterboxError::PromptError(error) => {
                 error!("{:#?}", error);
-                eprintln!("Failed to retrieve valid input from user.");
+                error!("Failed to retrieve valid input from user.");
             }
             LitterboxError::FailedToSerialise(name) => {
-                eprintln!("Failed to serialise {name}.");
+                error!("Failed to serialise {name}.");
             }
             LitterboxError::KeyAlreadyExists(name) => {
-                eprintln!("Key named {name} already exists.")
+                error!("Key named {name} already exists.")
             }
             LitterboxError::KeyDoesNotExist(name) => {
-                eprintln!("Key named {name} does not exist.")
+                error!("Key named {name} does not exist.")
             }
             LitterboxError::AlreadyAttachedToKey(key_name, litterbox_name) => {
-                eprintln!(
-                    "Litterbox named {litterbox_name} already attached to key named {key_name}."
-                )
+                error!("Litterbox named {litterbox_name} already attached to key named {key_name}.")
             }
             LitterboxError::Nix(errno) => {
-                eprintln!("Linux error: {:#?}", errno);
+                error!("Linux error: {:#?}", errno);
             }
             LitterboxError::InvalidDevicePath(path) => {
-                eprintln!("The following device path is not valid: {:#?}", path);
+                error!("The following device path is not valid: {:#?}", path);
             }
             LitterboxError::ConnectSocket(error) => {
                 error!("{:#?}", error);
-                eprintln!("Failed to connect to socket.");
+                error!("Failed to connect to socket.");
             }
             LitterboxError::RegisterKey(error) => {
                 error!("{:#?}", error);
-                eprintln!("Failed to register SSH key with internal agent.");
+                error!("Failed to register SSH key with internal agent.");
             }
             LitterboxError::ParseKeyFile(error) => {
                 error!("{:#?}", error);
-                eprintln!("Failed to parse keyfile.");
+                error!("Failed to parse keyfile.");
+            }
+            LitterboxError::ReplaceNotAllowed => {
+                error!("Litterbox cannot be rebuilt without replacing container.");
             }
         }
     }

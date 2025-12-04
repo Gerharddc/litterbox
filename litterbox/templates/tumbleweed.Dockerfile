@@ -1,9 +1,6 @@
 # syntax=docker/dockerfile:1.4
 FROM registry.opensuse.org/opensuse/tumbleweed:latest
 
-ARG USER
-ARG PASSWORD
-
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN zypper refresh && \
     zypper in -y sudo weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools curl iproute2
@@ -13,6 +10,10 @@ RUN zypper in -y fish
 
 # Install development toolchain (ADAPT TO YOUR OWN NEEDS)
 RUN zypper in -y clang cmake ninja gcc-c++
+
+# We put these args later to avoid excessive rebuilding
+ARG USER
+ARG PASSWORD
 
 # Setup non-root user with a password for added security
 RUN useradd -m $USER && \

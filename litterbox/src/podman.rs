@@ -232,41 +232,73 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         .prompt()
         .map_err(LitterboxError::PromptError)?;
 
+    let support_ping = Confirm::new("Do you want to support `ping` inside this Litterbox?")
+        .with_default(false)
+        .with_help_message("This will enable `CAP_NET_RAW`.")
+        .prompt()
+        .map_err(LitterboxError::PromptError)?;
+
+    let support_tuntap =
+        Confirm::new("Do you want to support TUN/TAP creation inside this Litterbox?")
+            .with_default(false)
+            .with_help_message(
+                "This will enable `CAP_NET_ADMIN` and expose `/dev/net/tun` to the container.",
+            )
+            .prompt()
+            .map_err(LitterboxError::PromptError)?;
+
+    let base_args = &[
+        "create",
+        "--tty",
+        "--name",
+        &container_name,
+        "--userns=keep-id",
+        "--device",
+        "/dev/dri",
+        "--hostname",
+        &format!("lbx-{lbx_name}"),
+        "--network",
+        network_mode.podman_args(),
+        "--security-opt=label=disable", // TODO: use udica to make better rules instead
+        "-e",
+        "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
+        "-v",
+        &format!("{ssh_sock_path}:/tmp/ssh-agent.sock"),
+        "-e",
+        &format!("WAYLAND_DISPLAY={wayland_display}"),
+        "-e",
+        "XDG_RUNTIME_DIR=/tmp",
+        "-v",
+        &format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}"),
+        "-v",
+        "/dev/dri:/dev/dri", // TODO: this does not work on WSL as the display device is different there
+        "-v",
+        &format!(
+            "{}:/home/{user}",
+            litterbox_home.to_str().expect("Invalid litterbox_home.")
+        ),
+        "--label",
+        &format!("work.litterbox.name={lbx_name}"),
+    ];
+    let mut full_args = base_args.to_vec();
+
+    if support_tuntap {
+        debug!("Appending TUN/TAP args");
+        full_args.extend_from_slice(&["--cap-add=NET_ADMIN", "--device", "/dev/net/tun"]);
+    }
+
+    if support_ping {
+        debug!("Appending ping args");
+        full_args.push("--cap-add=NET_RAW");
+    }
+
+    // It's best to have the image_id as the final argument
+    full_args.push(&image_id);
+
+    debug!("build_litterbox full_args: {:#?}", full_args);
+
     let child = Command::new("podman")
-        .args([
-            "create",
-            "--tty",
-            "--name",
-            &container_name,
-            "--userns=keep-id",
-            "--device",
-            "/dev/dri",
-            "--hostname",
-            &format!("lbx-{lbx_name}"),
-            "--network",
-            network_mode.podman_args(),
-            "--security-opt=label=disable", // TODO: use udica to make better rules instead
-            "-e",
-            "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
-            "-v",
-            &format!("{ssh_sock_path}:/tmp/ssh-agent.sock"),
-            "-e",
-            &format!("WAYLAND_DISPLAY={wayland_display}"),
-            "-e",
-            "XDG_RUNTIME_DIR=/tmp",
-            "-v",
-            &format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}"),
-            "-v",
-            "/dev/dri:/dev/dri", // TODO: this does not work on WSL as the display device is different there
-            "-v",
-            &format!(
-                "{}:/home/{user}",
-                litterbox_home.to_str().expect("Invalid litterbox_home.")
-            ),
-            "--label",
-            &format!("work.litterbox.name={lbx_name}"),
-            &image_id,
-        ])
+        .args(full_args)
         .spawn()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 

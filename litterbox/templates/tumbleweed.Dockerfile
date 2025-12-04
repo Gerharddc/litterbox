@@ -6,13 +6,13 @@ ARG PASSWORD
 
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN zypper refresh && \
-    zypper in -y sudo weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools curl
+    zypper in -y sudo weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools curl iproute2
 
 # Install the fish shell for a nicer experience
 RUN zypper in -y fish
 
 # Install development toolchain (ADAPT TO YOUR OWN NEEDS)
-RUN zypper in -y clang cmake ninja gcc-c++ gh
+RUN zypper in -y clang cmake ninja gcc-c++
 
 # Setup non-root user with a password for added security
 RUN useradd -m $USER && \

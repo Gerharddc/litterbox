@@ -17,7 +17,7 @@ jobs:
       - name: Build Release Binaries
         run: cargo build --release
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: litterbox
           path: target/release/litterbox

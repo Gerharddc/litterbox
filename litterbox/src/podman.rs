@@ -295,6 +295,12 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
             .prompt()
             .map_err(LitterboxError::PromptError)?;
 
+    let enable_kvm = Confirm::new("Do you want to enable KVM support in this Litterbox?")
+        .with_default(false)
+        .with_help_message("This will expose '/dev/kvm' to the Litterbox.")
+        .prompt()
+        .map_err(LitterboxError::PromptError)?;
+
     let base_args = &[
         "create",
         "--tty",
@@ -349,6 +355,11 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
             "--sysctl",
             "net.ipv6.conf.all.forwarding=1",
         ]);
+    }
+
+    if enable_kvm {
+        debug!("Appending KVM device args");
+        full_args.extend_from_slice(&["--device", "/dev/kvm"]);
     }
 
     // It's best to have the image_id as the final argument

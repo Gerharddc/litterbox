@@ -65,6 +65,7 @@ fn extract_stdout(output: &Output) -> Result<&str, LitterboxError> {
 enum Template {
     OpenSuseTumbleweed,
     UbuntuLts,
+    CachyOS,
 }
 
 impl Template {
@@ -72,6 +73,7 @@ impl Template {
         match self {
             Template::OpenSuseTumbleweed => include_str!("../templates/tumbleweed.Dockerfile"),
             Template::UbuntuLts => include_str!("../templates/ubuntu-latest.Dockerfile"),
+            Template::CachyOS => include_str!("../templates/cachyos.Dockerfile"),
         }
     }
 
@@ -79,6 +81,7 @@ impl Template {
         match self {
             Template::OpenSuseTumbleweed => "OpenSUSE Tumbleweed",
             Template::UbuntuLts => "Ubuntu LTS",
+            Template::CachyOS => "CachyOS",
         }
     }
 }

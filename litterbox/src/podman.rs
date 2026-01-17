@@ -334,6 +334,8 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         "-e",
         &format!("WAYLAND_DISPLAY={wayland_display}"),
         "-e",
+        "XDG_SESSION_TYPE=wayland",
+        "-e",
         "XDG_RUNTIME_DIR=/tmp",
         "-v",
         &format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}"),

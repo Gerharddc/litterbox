@@ -326,7 +326,7 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         &format!("lbx-{lbx_name}"),
         "--network",
         network_mode.podman_args(),
-        "--security-opt=label=disable", // TODO: use udica to make better rules instead
+        "--security-opt=label=disable", // TODO: use Landlock for better isolation
         "-e",
         "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
         "-v",

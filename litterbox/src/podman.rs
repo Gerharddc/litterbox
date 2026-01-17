@@ -301,6 +301,18 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         .prompt()
         .map_err(LitterboxError::PromptError)?;
 
+    let pipewire_socket_path = format!("{xdg_runtime_dir}/pipewire-0");
+    let expose_pipewire = if std::path::Path::new(&pipewire_socket_path).exists() {
+        Confirm::new("Do you want to expose PipeWire inside this Litterbox?")
+            .with_default(false)
+            .with_help_message("This will allow audio applications to work inside the Litterbox.")
+            .prompt()
+            .map_err(LitterboxError::PromptError)?
+    } else {
+        debug!("PipeWire socket not found on host system, user not prompted to expose it.");
+        false
+    };
+
     let base_args = &[
         "create",
         "--tty",
@@ -360,6 +372,12 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
     if enable_kvm {
         debug!("Appending KVM device args");
         full_args.extend_from_slice(&["--device", "/dev/kvm"]);
+    }
+
+    let pipewire_socket_mount = format!("{pipewire_socket_path}:/tmp/pipewire-0");
+    if expose_pipewire {
+        debug!("Appending PipeWire socket args");
+        full_args.extend_from_slice(&["-v", &pipewire_socket_mount]);
     }
 
     // It's best to have the image_id as the final argument

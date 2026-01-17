@@ -22,6 +22,10 @@ pub fn lbx_home_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
     path_relative_to_lbx_root(&format!("homes/{lbx_name}"))
 }
 
+pub fn settings_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
+    path_relative_to_lbx_root(&format!("definitions/{lbx_name}.ron"))
+}
+
 pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {
     let output_dir = path.parent().expect("Path should have parent.");
 

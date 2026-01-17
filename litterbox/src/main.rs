@@ -10,6 +10,7 @@ mod errors;
 mod files;
 mod keys;
 mod podman;
+mod settings;
 
 use crate::{
     agent::prompt_confirmation,

@@ -104,7 +104,7 @@ impl Keys {
             eprintln!("Serialise error: {:#?}", e);
             LitterboxError::FailedToSerialise("Keys")
         })?;
-        write_file(path.as_path(), &contents)
+        write_file(&path, &contents)
     }
 
     pub fn init_default() -> Result<Self, LitterboxError> {

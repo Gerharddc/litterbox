@@ -1,19 +1,18 @@
 use inquire::{Confirm, Password};
-use inquire_derive::Selectable;
 use log::{debug, info, warn};
 use serde::Deserialize;
 use std::{
-    fmt::Display,
     fs,
     process::{Child, Command},
 };
 
 use crate::{
-    define_litterbox,
+    define_litterbox, env,
     errors::LitterboxError,
     extract_stdout,
-    files::{SshSockFile, dockerfile_path, lbx_home_path},
-    gen_random_name, get_env,
+    files::{SshSockFile, dockerfile_path, lbx_home_path, pipewire_socket_path},
+    gen_random_name,
+    settings::LitterboxSettings,
 };
 
 #[derive(Deserialize, Debug, Clone)]
@@ -198,37 +197,6 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     Ok(())
 }
 
-#[derive(Debug, Copy, Clone, Selectable)]
-enum NetworkMode {
-    Pasta,
-    PastaWithForwarding,
-    Host,
-}
-
-impl NetworkMode {
-    fn name(&self) -> &'static str {
-        match self {
-            NetworkMode::Pasta => "Pasta (isolated user-mode networking stack)",
-            NetworkMode::PastaWithForwarding => "Pasta with port forwarding (host to container)",
-            NetworkMode::Host => "Host networking (i.e. NO ISOLATION)",
-        }
-    }
-
-    fn podman_args(&self) -> &'static str {
-        match self {
-            NetworkMode::Pasta => "pasta",
-            NetworkMode::PastaWithForwarding => "pasta:-t,auto,-u,auto",
-            NetworkMode::Host => "host",
-        }
-    }
-}
-
-impl Display for NetworkMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name())
-    }
-}
-
 pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError> {
     let image_id = get_image_details(lbx_name)?.id;
     let container_name = match get_container_details(lbx_name) {
@@ -252,6 +220,8 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
                 println!("The container will now be replaced!");
                 Ok(details.names[0].clone())
             } else {
+                // It is meaningless to "build" the Litterbox if we are not allowed to replace the container.
+                // Hence, we throw and error here.
                 Err(LitterboxError::ReplaceNotAllowed)
             }
         }
@@ -259,8 +229,8 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         Err(other) => Err(other),
     }?;
 
-    let wayland_display = get_env("WAYLAND_DISPLAY")?;
-    let xdg_runtime_dir = get_env("XDG_RUNTIME_DIR")?;
+    let wayland_display = env::wayland_display()?;
+    let xdg_runtime_dir = env::xdg_runtime_dir()?;
 
     let litterbox_home = lbx_home_path(lbx_name)?;
     fs::create_dir_all(&litterbox_home)
@@ -272,46 +242,7 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         .to_str()
         .expect("SSH socket path should be valid string");
 
-    let network_mode = NetworkMode::select("Choose the network mode for this Litterbox:")
-        .prompt()
-        .map_err(LitterboxError::PromptError)?;
-
-    let support_ping = Confirm::new("Do you want to support `ping` inside this Litterbox?")
-        .with_default(false)
-        .with_help_message("This will enable `CAP_NET_RAW`.")
-        .prompt()
-        .map_err(LitterboxError::PromptError)?;
-
-    let support_tuntap =
-        Confirm::new("Do you want to support TUN/TAP creation inside this Litterbox?")
-            .with_default(false)
-            .with_help_message("This will enable `CAP_NET_ADMIN` and expose `/dev/net/tun`.")
-            .prompt()
-            .map_err(LitterboxError::PromptError)?;
-
-    let enable_packet_forwarding =
-        Confirm::new("Do you want to enable packet forwarding inside this Litterbox?")
-            .with_default(false)
-            .prompt()
-            .map_err(LitterboxError::PromptError)?;
-
-    let enable_kvm = Confirm::new("Do you want to enable KVM support in this Litterbox?")
-        .with_default(false)
-        .with_help_message("This will expose '/dev/kvm' to the Litterbox.")
-        .prompt()
-        .map_err(LitterboxError::PromptError)?;
-
-    let pipewire_socket_path = format!("{xdg_runtime_dir}/pipewire-0");
-    let expose_pipewire = if std::path::Path::new(&pipewire_socket_path).exists() {
-        Confirm::new("Do you want to expose PipeWire inside this Litterbox?")
-            .with_default(false)
-            .with_help_message("This will allow audio applications to work inside the Litterbox.")
-            .prompt()
-            .map_err(LitterboxError::PromptError)?
-    } else {
-        debug!("PipeWire socket not found on host system, user not prompted to expose it.");
-        false
-    };
+    let settings = LitterboxSettings::load_or_prompt(lbx_name)?;
 
     let base_args = &[
         "create",
@@ -325,7 +256,7 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         "--hostname",
         &format!("lbx-{lbx_name}"),
         "--network",
-        network_mode.podman_args(),
+        settings.network_mode.podman_args(),
         "--security-opt=label=disable", // TODO: use Landlock for better isolation
         "-e",
         "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
@@ -351,17 +282,17 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
     ];
     let mut full_args = base_args.to_vec();
 
-    if support_tuntap {
+    if settings.support_tuntap {
         debug!("Appending TUN/TAP args");
         full_args.extend_from_slice(&["--cap-add=NET_ADMIN", "--device", "/dev/net/tun"]);
     }
 
-    if support_ping {
+    if settings.support_ping {
         debug!("Appending ping args");
         full_args.push("--cap-add=NET_RAW");
     }
 
-    if enable_packet_forwarding {
+    if settings.packet_forwarding {
         debug!("Appending packet forwarding args");
         full_args.extend_from_slice(&[
             "--sysctl",
@@ -371,13 +302,15 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         ]);
     }
 
-    if enable_kvm {
+    if settings.enable_kvm {
         debug!("Appending KVM device args");
         full_args.extend_from_slice(&["--device", "/dev/kvm"]);
     }
 
-    let pipewire_socket_mount = format!("{pipewire_socket_path}:/tmp/pipewire-0");
-    if expose_pipewire {
+    let pipewire_path = pipewire_socket_path()?;
+    let pipewire_path = pipewire_path.to_str().expect("Path should be valid string");
+    let pipewire_socket_mount = format!("{pipewire_path}:/tmp/pipewire-0");
+    if settings.expose_pipewire {
         debug!("Appending PipeWire socket args");
         full_args.extend_from_slice(&["-v", &pipewire_socket_mount]);
     }

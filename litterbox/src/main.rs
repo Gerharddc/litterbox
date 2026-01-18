@@ -1,15 +1,17 @@
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
-use std::{env, fmt::Display, process::Output};
+use std::{fmt::Display, process::Output};
 use tabled::{Table, Tabled};
 
 mod agent;
 mod devices;
+mod env;
 mod errors;
 mod files;
 mod keys;
 mod podman;
+mod settings;
 
 use crate::{
     agent::prompt_confirmation,
@@ -39,13 +41,6 @@ impl From<&ContainerDetails> for ContainerTableRow {
             image_id: value.image_id.chars().take(12).collect(),
         }
     }
-}
-
-fn get_env(lbx_name: &'static str) -> Result<String, LitterboxError> {
-    env::var_os(lbx_name)
-        .ok_or(LitterboxError::EnvVarUndefined(lbx_name))?
-        .into_string()
-        .map_err(|value| LitterboxError::EnvVarInvalid(lbx_name, value))
 }
 
 fn extract_stdout(output: &Output) -> Result<&str, LitterboxError> {

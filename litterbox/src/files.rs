@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::{LitterboxError, get_env};
+use crate::{LitterboxError, env};
 
 fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf, LitterboxError> {
-    let home_dir = get_env("HOME")?;
+    let home_dir = env::home_dir()?;
     let home_path = Path::new(&home_dir);
     let full_path = home_path.join("Litterbox").join(relative_path);
     Ok(full_path)
@@ -20,6 +20,16 @@ pub fn keyfile_path() -> Result<PathBuf, LitterboxError> {
 
 pub fn lbx_home_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
     path_relative_to_lbx_root(&format!("homes/{lbx_name}"))
+}
+
+pub fn settings_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
+    path_relative_to_lbx_root(&format!("definitions/{lbx_name}.ron"))
+}
+
+pub fn pipewire_socket_path() -> Result<PathBuf, LitterboxError> {
+    let xdg_runtime_dir = env::xdg_runtime_dir()?;
+    let path = format!("{xdg_runtime_dir}/pipewire-0");
+    Ok(Path::new(&path).to_path_buf())
 }
 
 pub fn write_file(path: &Path, contents: &str) -> Result<(), LitterboxError> {

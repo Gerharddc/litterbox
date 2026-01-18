@@ -32,6 +32,7 @@ pub enum LitterboxError {
     ConnectSocket(io::Error),
     RegisterKey(russh::keys::Error),
     ParseKeyFile(ron::error::SpannedError),
+    ParseSettingsFile(ron::error::SpannedError),
     ReplaceNotAllowed,
 }
 
@@ -140,6 +141,10 @@ impl LitterboxError {
             LitterboxError::ParseKeyFile(error) => {
                 error!("{:#?}", error);
                 error!("Failed to parse keyfile.");
+            }
+            LitterboxError::ParseSettingsFile(error) => {
+                error!("{:#?}", error);
+                error!("Failed to parse settings file.");
             }
             LitterboxError::ReplaceNotAllowed => {
                 error!("Litterbox cannot be rebuilt without replacing container.");

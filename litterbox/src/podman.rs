@@ -3,6 +3,7 @@ use log::{debug, info, warn};
 use serde::Deserialize;
 use std::{
     fs,
+    path::Path,
     process::{Child, Command},
 };
 
@@ -14,6 +15,43 @@ use crate::{
     gen_random_name,
     settings::LitterboxSettings,
 };
+
+/// Represents the GPU device configuration for the container
+enum GpuDevice {
+    /// Standard Linux GPU device at /dev/dri
+    Dri,
+    /// WSL2 DirectX device at /dev/dxg
+    Dxg,
+}
+
+impl GpuDevice {
+    fn device_path(&self) -> &'static str {
+        match self {
+            GpuDevice::Dri => "/dev/dri",
+            GpuDevice::Dxg => "/dev/dxg",
+        }
+    }
+
+    fn volume_mount(&self) -> &'static str {
+        match self {
+            GpuDevice::Dri => "/dev/dri:/dev/dri",
+            GpuDevice::Dxg => "/dev/dxg:/dev/dxg",
+        }
+    }
+}
+
+/// Detects the available GPU device based on what exists on the system
+fn detect_gpu_device() -> Option<GpuDevice> {
+    if Path::new("/dev/dri").exists() {
+        debug!("/dev/dri available");
+        Some(GpuDevice::Dri)
+    } else if Path::new("/dev/dxg").exists() {
+        debug!("/dev/dxg available (WSL)");
+        Some(GpuDevice::Dxg)
+    } else {
+        None
+    }
+}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct LitterboxLabels {
@@ -241,46 +279,59 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         .path()
         .to_str()
         .expect("SSH socket path should be valid string");
+    let ssh_sock_mount = format!("{ssh_sock_path}:/tmp/ssh-agent.sock");
 
     let settings = LitterboxSettings::load_or_prompt(lbx_name)?;
 
-    let base_args = &[
+    let gpu_device = detect_gpu_device();
+    if gpu_device.is_none() {
+        warn!("No GPU device found. GPU acceleration will not be available in the Litterbox.");
+    }
+
+    let hostname = format!("lbx-{lbx_name}");
+    let wayland_display_env = format!("WAYLAND_DISPLAY={wayland_display}");
+    let wayland_socket_mount =
+        format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}");
+    let home_mount = format!(
+        "{}:/home/{user}",
+        litterbox_home.to_str().expect("Invalid litterbox_home.")
+    );
+    let label = format!("work.litterbox.name={lbx_name}");
+
+    let mut full_args = vec![
         "create",
         "--tty",
         "--replace",
         "--name",
         &container_name,
         "--userns=keep-id",
-        "--device",
-        "/dev/dri",
         "--hostname",
-        &format!("lbx-{lbx_name}"),
+        &hostname,
         "--network",
         settings.network_mode.podman_args(),
         "--security-opt=label=disable", // TODO: use Landlock for better isolation
         "-e",
         "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
         "-v",
-        &format!("{ssh_sock_path}:/tmp/ssh-agent.sock"),
+        &ssh_sock_mount,
         "-e",
-        &format!("WAYLAND_DISPLAY={wayland_display}"),
+        &wayland_display_env,
         "-e",
         "XDG_SESSION_TYPE=wayland",
         "-e",
         "XDG_RUNTIME_DIR=/tmp",
         "-v",
-        &format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}"),
+        &wayland_socket_mount,
         "-v",
-        "/dev/dri:/dev/dri", // TODO: this does not work on WSL as the display device is different there
-        "-v",
-        &format!(
-            "{}:/home/{user}",
-            litterbox_home.to_str().expect("Invalid litterbox_home.")
-        ),
+        &home_mount,
         "--label",
-        &format!("work.litterbox.name={lbx_name}"),
+        &label,
     ];
-    let mut full_args = base_args.to_vec();
+
+    if let Some(gpu) = &gpu_device {
+        debug!("Appending GPU device args for {}", gpu.device_path());
+        full_args.extend_from_slice(&["--device", gpu.device_path(), "-v", gpu.volume_mount()]);
+    }
 
     if settings.support_tuntap {
         debug!("Appending TUN/TAP args");

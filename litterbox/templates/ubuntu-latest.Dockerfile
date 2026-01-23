@@ -3,7 +3,7 @@ FROM ubuntu:latest
 
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN apt-get update && \
-    apt-get install -y sudo weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools curl iproute2
+    apt-get install -y sudo weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools curl iproute2 rsync
 
 # Install the fish shell for a nicer experience
 RUN apt-get install -y fish

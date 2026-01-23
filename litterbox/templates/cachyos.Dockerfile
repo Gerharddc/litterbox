@@ -4,7 +4,7 @@ FROM docker.io/cachyos/cachyos-v3:latest
 
 # Setup base system (install essential packages)
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm sudo wayland mesa vulkan-tools vulkan-radeon vulkan-intel openssh git iputils curl iproute2
+    pacman -S --noconfirm sudo wayland mesa vulkan-tools vulkan-radeon vulkan-intel openssh git iputils curl iproute2 rsync
 
 # Install the fish shell for a nicer experience
 RUN pacman -S --noconfirm fish

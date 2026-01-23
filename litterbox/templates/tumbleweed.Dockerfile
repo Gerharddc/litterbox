@@ -3,7 +3,7 @@ FROM registry.opensuse.org/opensuse/tumbleweed:latest
 
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN zypper refresh && \
-    zypper in -y sudo weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools curl iproute2
+    zypper in -y sudo weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools curl iproute2 rsync
 
 # Install the fish shell for a nicer experience
 RUN zypper in -y fish

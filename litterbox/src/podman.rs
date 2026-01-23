@@ -315,6 +315,16 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         full_args.extend_from_slice(&["-v", &pipewire_socket_mount]);
     }
 
+    if settings.keep_groups {
+        debug!("Appending keep groups args");
+        full_args.push("--group-add=keep-groups");
+    }
+
+    if settings.expose_kfd {
+        debug!("Appending KFD device args");
+        full_args.extend_from_slice(&["--device", "/dev/kfd"]);
+    }
+
     // It's best to have the image_id as the final argument
     full_args.push(&image_id);
 

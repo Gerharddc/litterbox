@@ -2,7 +2,7 @@ use inquire::Confirm;
 use inquire_derive::Selectable;
 use log::debug;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{fmt::Display, path::Path};
 
 use crate::{
     errors::LitterboxError,
@@ -46,12 +46,23 @@ pub struct LitterboxSettings {
     /// Version of the settings format stored for future migrations
     pub version: u32,
 
+    // Original settings:
     pub network_mode: NetworkMode,
     pub support_ping: bool,
     pub support_tuntap: bool,
     pub packet_forwarding: bool,
     pub enable_kvm: bool,
     pub expose_pipewire: bool,
+
+    // Settings added later which need defaults:
+    #[serde(default = "default_false")]
+    pub keep_groups: bool,
+    #[serde(default = "default_false")]
+    pub expose_kfd: bool,
+}
+
+fn default_false() -> bool {
+    false
 }
 
 impl LitterboxSettings {
@@ -128,11 +139,34 @@ impl LitterboxSettings {
                 .prompt()
                 .map_err(LitterboxError::PromptError)?;
 
-        let enable_kvm = Confirm::new("Do you want to enable KVM support in this Litterbox?")
-            .with_default(existing.map(|s| s.enable_kvm).unwrap_or(false))
-            .with_help_message("This will expose '/dev/kvm' to the Litterbox.")
-            .prompt()
-            .map_err(LitterboxError::PromptError)?;
+        let keep_groups =
+            Confirm::new("Do you want to keep your user groups inside this Litterbox?")
+                .with_default(existing.map(|s| s.keep_groups).unwrap_or(false))
+                .with_help_message("This will preserve your host user's group memberships.")
+                .prompt()
+                .map_err(LitterboxError::PromptError)?;
+
+        let enable_kvm = if Path::new("/dev/kfd").exists() {
+            Confirm::new("Do you want to enable KVM support in this Litterbox?")
+                .with_default(existing.map(|s| s.enable_kvm).unwrap_or(false))
+                .with_help_message("This will expose '/dev/kvm' to the Litterbox.")
+                .prompt()
+                .map_err(LitterboxError::PromptError)?
+        } else {
+            debug!("/dev/kvm not found on host system, user not prompted to expose it.");
+            false
+        };
+
+        let expose_kfd = if Path::new("/dev/kfd").exists() {
+            Confirm::new("Do you want to expose /dev/kfd inside this Litterbox?")
+                .with_default(existing.map(|s| s.expose_kfd).unwrap_or(false))
+                .with_help_message("This will expose the AMD Kernel Fusion Driver for GPU compute.")
+                .prompt()
+                .map_err(LitterboxError::PromptError)?
+        } else {
+            debug!("/dev/kfd not found on host system, user not prompted to expose it.");
+            false
+        };
 
         let expose_pipewire = if pipewire_socket_path()?.exists() {
             Confirm::new("Do you want to expose PipeWire inside this Litterbox?")
@@ -155,6 +189,8 @@ impl LitterboxSettings {
             packet_forwarding,
             enable_kvm,
             expose_pipewire,
+            keep_groups,
+            expose_kfd,
         })
     }
 }

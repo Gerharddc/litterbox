@@ -1,4 +1,4 @@
-use inquire::Confirm;
+use inquire::{Confirm, Text};
 use inquire_derive::Selectable;
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -59,6 +59,8 @@ pub struct LitterboxSettings {
     pub keep_groups: bool,
     #[serde(default = "default_false")]
     pub expose_kfd: bool,
+    #[serde(default)]
+    pub shm_size_gb: Option<u32>,
 }
 
 fn default_false() -> bool {
@@ -181,6 +183,20 @@ impl LitterboxSettings {
             false
         };
 
+        let shm_size_default = existing.and_then(|s| s.shm_size_gb);
+        let shm_size_input = Text::new("Shared memory size in GB (leave empty for default):")
+            .with_default(&shm_size_default.map(|v| v.to_string()).unwrap_or_default())
+            .with_help_message("Sets --shm-size for the container (e.g., 8 for 8G).")
+            .prompt()
+            .map_err(LitterboxError::PromptError)?;
+        let shm_size_gb: Option<u32> = if shm_size_input.trim().is_empty() {
+            None
+        } else {
+            Some(shm_size_input.trim().parse().map_err(|_| {
+                LitterboxError::InvalidInput("shm_size_gb must be a valid integer".to_string())
+            })?)
+        };
+
         Ok(Self {
             version: 1,
             network_mode,
@@ -191,6 +207,7 @@ impl LitterboxSettings {
             expose_pipewire,
             keep_groups,
             expose_kfd,
+            shm_size_gb,
         })
     }
 }

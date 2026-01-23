@@ -376,6 +376,12 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         full_args.extend_from_slice(&["--device", "/dev/kfd"]);
     }
 
+    let shm_size_arg = settings.shm_size_gb.map(|gb| format!("{}G", gb));
+    if let Some(ref shm_size) = shm_size_arg {
+        debug!("Appending shm-size args: {}", shm_size);
+        full_args.extend_from_slice(&["--shm-size", shm_size]);
+    }
+
     // It's best to have the image_id as the final argument
     full_args.push(&image_id);
 

@@ -34,6 +34,7 @@ pub enum LitterboxError {
     ParseKeyFile(ron::error::SpannedError),
     ParseSettingsFile(ron::error::SpannedError),
     ReplaceNotAllowed,
+    InvalidInput(String),
 }
 
 impl LitterboxError {
@@ -148,6 +149,9 @@ impl LitterboxError {
             }
             LitterboxError::ReplaceNotAllowed => {
                 error!("Litterbox cannot be rebuilt without replacing container.");
+            }
+            LitterboxError::InvalidInput(msg) => {
+                error!("Invalid input: {msg}");
             }
         }
     }

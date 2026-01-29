@@ -4151,9 +4151,9 @@ dependencies = [
 
 [[package]]
 name = "russh"
-version = "0.56.0"
+version = "0.57.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdbb7dcdd62c17ac911307ff693f55b3ec6712004d2d66ffdb8c0fa00269fd66"
+checksum = "01fe22d10a0e39c1134a971d5b8db8a40357b48ef22d81fa8d6eac22202dd782"
 dependencies = [
  "aes",
  "aws-lc-rs",
@@ -4193,8 +4193,8 @@ dependencies = [
  "pkcs1",
  "pkcs5",
  "pkcs8 0.10.2",
- "rand 0.8.5",
- "rand_core 0.6.4",
+ "rand 0.9.2",
+ "rand_core 0.10.0-rc-3",
  "rsa",
  "russh-cryptovec",
  "russh-util",

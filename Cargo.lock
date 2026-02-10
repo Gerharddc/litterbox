@@ -2510,9 +2510,9 @@ dependencies = [
 
 [[package]]
 name = "inquire-derive"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edec52aa3e84d5b2f2bed01149816f5b0c92f6f1c64045a9ba38c5b424d7522f"
+checksum = "0278e2c9682c19584f58518ab9348f1ff14e55efb004c317bfa7933f4113ddec"
 dependencies = [
  "proc-macro2",
  "quote",

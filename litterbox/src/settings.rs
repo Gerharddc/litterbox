@@ -59,6 +59,8 @@ pub struct LitterboxSettings {
     pub keep_groups: bool,
     #[serde(default = "default_false")]
     pub expose_kfd: bool,
+    #[serde(default = "default_false")]
+    pub unconfine_seccomp: bool,
     #[serde(default)]
     pub shm_size_gb: Option<u32>,
 }
@@ -148,6 +150,14 @@ impl LitterboxSettings {
                 .prompt()
                 .map_err(LitterboxError::PromptError)?;
 
+        let unconfine_seccomp = Confirm::new("Do you want to disable seccomp confinement?")
+            .with_default(existing.map(|s| s.keep_groups).unwrap_or(false))
+            .with_help_message(
+                "This enables 'dangerous' syscalls required by things like the Mojo debugger.",
+            )
+            .prompt()
+            .map_err(LitterboxError::PromptError)?;
+
         let enable_kvm = if Path::new("/dev/kfd").exists() {
             Confirm::new("Do you want to enable KVM support in this Litterbox?")
                 .with_default(existing.map(|s| s.enable_kvm).unwrap_or(false))
@@ -204,6 +214,7 @@ impl LitterboxSettings {
             support_tuntap,
             packet_forwarding,
             enable_kvm,
+            unconfine_seccomp,
             expose_pipewire,
             keep_groups,
             expose_kfd,

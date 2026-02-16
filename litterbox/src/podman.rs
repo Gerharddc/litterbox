@@ -371,6 +371,11 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
         full_args.push("--group-add=keep-groups");
     }
 
+    if settings.unconfine_seccomp {
+        debug!("Disabling seccomp confinement");
+        full_args.extend_from_slice(&["--security-opt", "seccomp=unconfined"]);
+    }
+
     if settings.expose_kfd {
         debug!("Appending KFD device args");
         full_args.extend_from_slice(&["--device", "/dev/kfd"]);

@@ -23,5 +23,5 @@ tokio-stream = { version = "0.1", features = ["net"] }
 eframe = "0.33"
 egui_extras = { version="0.33", features=["svg"] }
 futures = "0.3"
-strum = "0.27"
+strum = "0.28"
 strum_macros = "0.27"

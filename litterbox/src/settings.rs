@@ -12,7 +12,9 @@ use crate::{
 #[derive(Debug, Copy, Clone, Selectable, Serialize, Deserialize, PartialEq)]
 pub enum NetworkMode {
     Pasta,
-    PastaWithForwarding,
+    PastaHostToContainer,
+    PastaContainerToHost,
+    PastaBidirectional,
     Host,
 }
 
@@ -20,7 +22,15 @@ impl NetworkMode {
     fn name(&self) -> &'static str {
         match self {
             NetworkMode::Pasta => "Pasta (isolated user-mode networking stack)",
-            NetworkMode::PastaWithForwarding => "Pasta with port forwarding (host to container)",
+            NetworkMode::PastaHostToContainer => {
+                "Pasta with automatic port forwarding (host to container)"
+            }
+            NetworkMode::PastaContainerToHost => {
+                "Pasta with automatic port forwarding (container to host)"
+            }
+            NetworkMode::PastaBidirectional => {
+                "Pasta with automatic port forwarding (bidirectional)"
+            }
             NetworkMode::Host => "Host networking (i.e. NO ISOLATION)",
         }
     }
@@ -28,7 +38,9 @@ impl NetworkMode {
     pub fn podman_args(&self) -> &'static str {
         match self {
             NetworkMode::Pasta => "pasta",
-            NetworkMode::PastaWithForwarding => "pasta:-t,auto,-u,auto",
+            NetworkMode::PastaHostToContainer => "pasta:-t,auto,-u,auto",
+            NetworkMode::PastaContainerToHost => "pasta:-T,auto,-U,auto",
+            NetworkMode::PastaBidirectional => "pasta:-t,auto,-u,auto,-T,auto,-U,auto",
             NetworkMode::Host => "host",
         }
     }
@@ -47,7 +59,6 @@ pub struct LitterboxSettings {
     pub version: u32,
 
     // Original settings:
-    pub network_mode: NetworkMode,
     pub support_ping: bool,
     pub support_tuntap: bool,
     pub packet_forwarding: bool,
@@ -63,10 +74,16 @@ pub struct LitterboxSettings {
     pub unconfine_seccomp: bool,
     #[serde(default)]
     pub shm_size_gb: Option<u32>,
+    #[serde(default = "default_pasta")]
+    pub network_mode: NetworkMode,
 }
 
 fn default_false() -> bool {
     false
+}
+
+fn default_pasta() -> NetworkMode {
+    NetworkMode::Pasta
 }
 
 impl LitterboxSettings {
@@ -151,7 +168,7 @@ impl LitterboxSettings {
                 .map_err(LitterboxError::PromptError)?;
 
         let unconfine_seccomp = Confirm::new("Do you want to disable seccomp confinement?")
-            .with_default(existing.map(|s| s.keep_groups).unwrap_or(false))
+            .with_default(existing.map(|s| s.unconfine_seccomp).unwrap_or(false))
             .with_help_message(
                 "This enables 'dangerous' syscalls required by things like the Mojo debugger.",
             )

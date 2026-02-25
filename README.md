@@ -77,7 +77,9 @@ First you will need to define your Litterbox by running `litterbox define LBX_NA
 
 ### 2. Build
 
-Then you will need to build your Litterbox by running `litterbox build LBX_NAME`. If you ever want to delete it again, simply run `litterbox delete LBX_NAME`. Currently you will need to a delete a Litterbox to rebuild it, but I hope to add a dedicated rebuild function at some point.
+Then you will need to build your Litterbox by running `litterbox build LBX_NAME`. If you ever want to delete it again, simply run `litterbox delete LBX_NAME`. If you try to build a Litterbox that already exists, you will be offered the option to rebuild it or to do nothing.
+
+During the build process, you will be asked various questions related to how you want to configure this Litterbox. These primarily concern which non-default access you want to give this Litterbox (such as wether it should have access to PipeWire). These settings are stored at `~/Litterbox/LBX_NAME.ron` and can be changed either by editing the file directly or by rebuilding the Litterbox and opting to change the settings. You will have to rebuild the Litterbox after changing the settings file for things to take effect though.
 
 ### 3. Enter
 
@@ -117,12 +119,13 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [x] Add function to approve some SSH agent requests for the duration of the session.
 - [x] Add optional support for using host network.
 - [x] Add optional support for port forwarding with the default "pasta" networking.
-- [ ] Add a "prune" command to get rid of dangling images
+- [ ] Add a "prune" command to get rid of dangling images.
+- [ ] Add support for more granular network settings.
 - [ ] Show SSH key name when prompting for approval. (Currently blocked by https://github.com/Eugeny/russh/issues/602)
 - [ ] Use `Landlock` to improve isolation strength.
 - [ ] Expose limited DBus access to allow applications to open URLs. Likely using [dbus-proxy](https://github.com/Pelagicore/dbus-proxy).
 - [ ] Make it possible for Xorg apps to run via Wayback integration.
-- [ ] Add support for running on Windows via WSL.
+- [ ] Add full support for running on Windows via WSL.
 - [ ] Add Dockerfile templates for more distros.
 - [ ] Add support for more hardware platforms to the installer.
 - [ ] Release a version that uses Zenity for prompting for users that want a smaller binary.

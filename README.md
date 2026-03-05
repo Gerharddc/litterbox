@@ -81,7 +81,7 @@ Then you will need to build your Litterbox by running `litterbox build LBX_NAME`
 
 ### 3. Enter
 
-Finally you can then enter your Litterbox by running `litterbox enter LBX_NAME`. Once inside the Litterbox you can then start working on your projects!
+Finally you can then enter your Litterbox by running `litterbox enter LBX_NAME`. Once inside the Litterbox you can then start working on your projects! You can enter the same Litterbox multiple times from different terminals - all terminals share the same running container and this container will automatically stop when the last terminal exits.
 
 ### 4. Keys
 

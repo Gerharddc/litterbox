@@ -18,7 +18,7 @@ use crate::{
     devices::attach_device,
     errors::LitterboxError,
     files::{dockerfile_path, write_file},
-    keys::Keys,
+    keys::{Keys, run_ssh_agent_daemon},
     podman::*,
 };
 
@@ -177,6 +177,13 @@ enum Commands {
         #[arg(long)]
         lbx_name: String,
     },
+
+    /// Run SSH agent daemon (for internal use)
+    #[clap(hide = true)]
+    SshDaemon {
+        /// The name of the Litterbox
+        name: String,
+    },
 }
 
 fn run_menu() -> Result<(), LitterboxError> {
@@ -215,6 +222,17 @@ fn run_menu() -> Result<(), LitterboxError> {
         }
         Commands::Confirm { request, lbx_name } => {
             prompt_confirmation(&request, &lbx_name);
+        }
+        Commands::SshDaemon { name } => {
+            use std::io::{self, Read};
+
+            let mut password = String::new();
+            io::stdin()
+                .read_to_string(&mut password)
+                .map_err(|e| LitterboxError::ReadFailed(e, "stdin".into()))?;
+
+            let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
+            rt.block_on(run_ssh_agent_daemon(&name, password.trim()))?;
         }
     }
     Ok(())

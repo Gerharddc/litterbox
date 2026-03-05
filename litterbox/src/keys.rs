@@ -1,5 +1,8 @@
 use argon2::Argon2;
 use inquire::{MultiSelect, Password};
+use log::info;
+use nix::sys::signal::kill;
+use nix::unistd::Pid;
 use russh::keys::{
     Algorithm, PrivateKey,
     pkcs8::{decode_pkcs8, encode_pkcs8_encrypted},
@@ -12,7 +15,8 @@ use tabled::{Table, Tabled};
 use crate::{
     LitterboxError,
     agent::{AgentState, start_ssh_agent},
-    files::{keyfile_path, read_file, write_file},
+    files::{keyfile_path, read_file, ssh_daemon_lock_path, write_file},
+    podman::any_remaining_pts_processes,
 };
 
 fn gen_key() -> PrivateKey {
@@ -259,20 +263,31 @@ impl Keys {
         }
     }
 
-    pub async fn start_ssh_server(&self, lbx_name: &str) -> Result<(), LitterboxError> {
-        let lbx_keys = self
-            .keys
+    fn attached_keys(&self, lbx_name: &str) -> Vec<&Key> {
+        self.keys
             .iter()
-            .filter(|key| key.attached_litterboxes.iter().any(|name| name == lbx_name));
+            .filter(|key| key.attached_litterboxes.iter().any(|name| name == lbx_name))
+            .collect()
+    }
 
-        let keys_password = if lbx_keys.clone().count() != 0 {
-            println!("This Litterbox has keys attached. A password is needed to decrypt them.");
-            self.prompt_password()?
+    fn has_attached_keys(&self, lbx_name: &str) -> bool {
+        !self.attached_keys(lbx_name).is_empty()
+    }
+
+    pub fn password_if_needed(&self, lbx_name: &str) -> Result<Option<String>, LitterboxError> {
+        if self.has_attached_keys(lbx_name) {
+            let password = self.prompt_password()?;
+            Ok(Some(password))
         } else {
-            log::info!("Litterbox does not have keys attached. Not prompting for password.");
-            String::default()
-        };
+            Ok(None)
+        }
+    }
 
+    pub async fn start_ssh_server(
+        &self,
+        lbx_name: &str,
+        password: &str,
+    ) -> Result<(), LitterboxError> {
         let agent_state = Arc::new(AgentState::default());
         let agent_path = start_ssh_agent(lbx_name, agent_state.clone()).await?;
         log::debug!("agent_path: {:#?}", agent_path);
@@ -283,18 +298,16 @@ impl Keys {
         let mut client = russh::keys::agent::client::AgentClient::connect(stream);
 
         log::debug!("Registering keys to SSH agent.");
-        for key in lbx_keys {
+        for key in self.attached_keys(lbx_name) {
             log::info!("Registering key into agent: {}", key.name);
 
-            assert!(!keys_password.is_empty());
-            let decrypted = key.decrypt(&keys_password);
+            let decrypted = key.decrypt(password);
             client
                 .add_identity(&decrypted, &[])
                 .await
                 .map_err(LitterboxError::RegisterKey)?;
         }
 
-        // Ensure the agent will now start prompting for authorization
         agent_state.locked.store(true, Ordering::SeqCst);
 
         Ok(())
@@ -324,6 +337,51 @@ impl Keys {
             None => Err(LitterboxError::KeyDoesNotExist(key_name.to_owned())),
         }
     }
+}
+
+pub async fn run_ssh_agent_daemon(lbx_name: &str, password: &str) -> Result<(), LitterboxError> {
+    let lock_path = ssh_daemon_lock_path(lbx_name)?;
+
+    if lock_path.exists() {
+        let pid_str = std::fs::read_to_string(&lock_path)
+            .map_err(|e| LitterboxError::ReadFailed(e, lock_path.clone()))?;
+
+        if let Ok(pid) = pid_str.trim().parse::<u32>() {
+            let pid = Pid::from_raw(pid as i32);
+            if kill(pid, None).is_ok() {
+                info!("SSH daemon already running for {}", lbx_name);
+                return Ok(());
+            }
+        }
+
+        info!("Stale lock file found for SSH daemon, removing");
+        std::fs::remove_file(&lock_path)
+            .map_err(|e| LitterboxError::RemoveFailed(e, lock_path.clone()))?;
+    }
+
+    let my_pid = std::process::id();
+    std::fs::write(&lock_path, my_pid.to_string())
+        .map_err(|e| LitterboxError::WriteFailed(e, lock_path.clone()))?;
+
+    let keys = Keys::load()?;
+
+    if keys.has_attached_keys(lbx_name) {
+        keys.start_ssh_server(lbx_name, password).await?;
+    } else {
+        log::info!("No keys attached to {}, skipping SSH agent setup", lbx_name);
+    }
+
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+        if !any_remaining_pts_processes(lbx_name).unwrap_or(false) {
+            break;
+        }
+    }
+
+    std::fs::remove_file(&lock_path).map_err(|e| LitterboxError::RemoveFailed(e, lock_path))?;
+    info!("SSH daemon exiting for {}", lbx_name);
+    Ok(())
 }
 
 #[cfg(test)]

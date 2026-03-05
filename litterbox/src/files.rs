@@ -3,6 +3,12 @@ use std::path::{Path, PathBuf};
 
 use crate::{LitterboxError, env};
 
+pub fn litterbox_binary_path() -> String {
+    std::env::args()
+        .next()
+        .expect("Binary path should be defined.")
+}
+
 fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf, LitterboxError> {
     let home_dir = env::home_dir()?;
     let home_path = Path::new(&home_dir);
@@ -24,6 +30,10 @@ pub fn lbx_home_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
 
 pub fn settings_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
     path_relative_to_lbx_root(&format!("definitions/{lbx_name}.ron"))
+}
+
+pub fn ssh_daemon_lock_path(lbx_name: &str) -> Result<PathBuf, LitterboxError> {
+    path_relative_to_lbx_root(&format!(".ssh-daemon-{lbx_name}.lock"))
 }
 
 pub fn pipewire_socket_path() -> Result<PathBuf, LitterboxError> {

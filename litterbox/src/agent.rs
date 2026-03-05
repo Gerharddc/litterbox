@@ -9,7 +9,7 @@ use tokio::process::Command;
 
 use crate::errors::LitterboxError;
 use crate::extract_stdout;
-use crate::files::SshSockFile;
+use crate::files::{SshSockFile, litterbox_binary_path};
 
 #[derive(Clone)]
 struct AskAgent {
@@ -177,8 +177,7 @@ pub async fn start_ssh_agent(
     lbx_name: &str,
     agent_state: Arc<AgentState>,
 ) -> Result<PathBuf, LitterboxError> {
-    let mut args = std::env::args();
-    let litterbox_path = args.next().expect("Binary path should be defined.");
+    let litterbox_path = litterbox_binary_path();
 
     let ssh_sock = SshSockFile::new(lbx_name, false)?;
     let agent_path = ssh_sock.path().to_owned();

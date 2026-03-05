@@ -4,15 +4,18 @@ use serde::Deserialize;
 use std::{
     fs,
     path::Path,
-    process::{Child, Command},
+    process::{Child, Command, Stdio},
 };
 
 use crate::{
     define_litterbox, env,
     errors::LitterboxError,
     extract_stdout,
-    files::{SshSockFile, dockerfile_path, lbx_home_path, pipewire_socket_path},
+    files::{
+        SshSockFile, dockerfile_path, lbx_home_path, litterbox_binary_path, pipewire_socket_path,
+    },
     gen_random_name,
+    keys::Keys,
     settings::LitterboxSettings,
 };
 
@@ -157,6 +160,52 @@ pub fn get_image_details(lbx_name: &str) -> Result<ImageDetails, LitterboxError>
         1 => Ok(images.0[0].clone()),
         _ => Err(LitterboxError::MultipleImagesForName),
     }
+}
+
+pub fn is_container_running(lbx_name: &str) -> Result<bool, LitterboxError> {
+    let output = Command::new("podman")
+        .args([
+            "ps",
+            "--format",
+            "json",
+            "--filter",
+            &format!("label=work.litterbox.name={lbx_name}"),
+        ])
+        .output()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
+
+    let stdout = extract_stdout(&output)?;
+    let containers: AllContainers =
+        serde_json::from_str(stdout).map_err(LitterboxError::Deserialize)?;
+
+    Ok(!containers.0.is_empty())
+}
+
+pub fn any_remaining_pts_processes(container_id: &str) -> Result<bool, LitterboxError> {
+    let output = Command::new("podman")
+        .args(["top", container_id])
+        .output()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
+
+    let stdout = extract_stdout(&output)?;
+
+    for line in stdout.lines() {
+        if line.contains("pts/") {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+pub fn stop_container(container_id: &str) -> Result<(), LitterboxError> {
+    let child = Command::new("podman")
+        .args(["stop", container_id])
+        .spawn()
+        .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
+
+    wait_for_podman(child)?;
+    Ok(())
 }
 
 fn wait_for_podman(mut child: Child) -> Result<(), LitterboxError> {
@@ -403,20 +452,61 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<(), LitterboxError>
 }
 
 pub async fn enter_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
-    let keys = crate::keys::Keys::load()?;
-    keys.start_ssh_server(lbx_name).await?;
+    let container_id = get_container_details(lbx_name)?.id;
 
-    let child = Command::new("podman")
+    if !is_container_running(lbx_name)? {
+        let keys = Keys::load()?;
+        let password = keys.password_if_needed(lbx_name)?;
+
+        if let Some(ref pwd) = password {
+            let mut cmd = Command::new(litterbox_binary_path());
+            cmd.args(["ssh-daemon", lbx_name]);
+            cmd.stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
+
+            let mut daemon_child = cmd
+                .spawn()
+                .map_err(|e| LitterboxError::RunCommand(e, "litterbox"))?;
+
+            if let Some(stdin) = daemon_child.stdin.take() {
+                use std::io::Write;
+
+                let mut stdin = stdin;
+                stdin
+                    .write_all(pwd.as_bytes())
+                    .map_err(|e| LitterboxError::WriteFailed(e, "daemon stdin".into()))?;
+            }
+        }
+
+        let start_child = Command::new("podman")
+            .args(["start", &container_id])
+            .spawn()
+            .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
+
+        wait_for_podman(start_child)?;
+    }
+
+    let exec_child = Command::new("podman")
         .args([
-            "start",
-            "--interactive",
-            "--attach",
-            &get_container_details(lbx_name)?.id,
+            "exec",
+            "-it",
+            &container_id,
+            "env",
+            "sh",
+            "-c",
+            "exec $SHELL -l",
         ])
         .spawn()
         .map_err(|e| LitterboxError::RunCommand(e, "podman"))?;
 
-    wait_for_podman(child)?;
+    let _ = wait_for_podman(exec_child);
+
+    if !any_remaining_pts_processes(&container_id)? {
+        debug!("No remaining pts processes, shutting down container.");
+        stop_container(&container_id)?;
+    }
+
     debug!("Litterbox finished.");
     Ok(())
 }

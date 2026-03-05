@@ -60,6 +60,8 @@ chmod +x /prep-home.sh
 chown $USER /prep-home.sh
 EOF
 
+# Set LANG to enable UTF-8 support
+ENV LANG=en_US.UTF-8
 # Enter the fish shell by default
 ENV SHELL=fish
 RUN chsh -s /usr/bin/fish $USER

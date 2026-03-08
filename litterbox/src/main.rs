@@ -224,41 +224,43 @@ fn run_menu() -> Result<()> {
         Commands::Daemon { name } => {
             use std::io::{Read, stdin};
 
-            let mut password_input = String::new();
-            stdin().read_to_string(&mut password_input)?;
-            let password_input = password_input.trim();
-            let password = if password_input.is_empty() {
-                None
-            } else {
-                Some(password_input)
-            };
+            let mut password = String::new();
+            stdin().read_to_string(&mut password)?;
+            let password = password.trim();
 
             // We wait to create the runtime here since only this one command depends on it.
             let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
             rt.block_on(run_daemon(&name, password))?;
         }
         Commands::Wait => {
+            // TODO: move this complex implimentation to files.rs
+
+            use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
+
             let session_lock_path = Path::new("/session.lock");
+            let is_empty = || match std::fs::read_to_string(session_lock_path) {
+                Ok(content) => content.trim().is_empty(),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
+                Err(e) => {
+                    log::error!("Failed to read session lock file: {}", e);
+                    false
+                }
+            };
+
+            if is_empty() {
+                println!("Session already empty, Litterbox finished.");
+                return Ok(());
+            }
+
+            let inotify = Inotify::init(InitFlags::empty())?;
+            inotify.add_watch(session_lock_path, AddWatchFlags::IN_MODIFY)?;
 
             println!("Litterbox started, waiting for session to become empty.");
             loop {
-                match std::fs::read_to_string(session_lock_path) {
-                    Ok(content) => {
-                        if content.trim().is_empty() {
-                            break;
-                        }
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                        break;
-                    }
-                    Err(e) => {
-                        log::error!("Failed to read session lock file: {}", e);
-                        return Err(anyhow::anyhow!("Failed to read session lock file: {}", e));
-                    }
+                let _ = inotify.read_events()?;
+                if is_empty() {
+                    break;
                 }
-
-                // FIXME: instead of waiting for a period, we should use a kernel facility to wait for file changes
-                std::thread::sleep(std::time::Duration::from_secs(5));
             }
             println!("Session empty, Litterbox finished.");
         }

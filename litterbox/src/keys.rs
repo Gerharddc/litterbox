@@ -331,7 +331,7 @@ impl Keys {
 }
 
 // TODO: keys.rs is probably not the best place for this function anymore
-pub async fn run_daemon(lbx_name: &str, password: Option<&str>) -> Result<()> {
+pub async fn run_daemon(lbx_name: &str, password: &str) -> Result<()> {
     let daemon_lock = files::daemon_lock_path(lbx_name)?;
 
     if daemon_lock.exists() {
@@ -353,8 +353,6 @@ pub async fn run_daemon(lbx_name: &str, password: Option<&str>) -> Result<()> {
     let my_pid = std::process::id();
     std::fs::write(&daemon_lock, my_pid.to_string()).context("Failed to write daemon lock file")?;
 
-    // TODO: perhaps we should print a warning if there are keys attached without a password provided
-    let password = password.unwrap_or("");
     let keys = Keys::load()?;
     keys.start_ssh_server(lbx_name, password).await?;
 

@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     define_litterbox, env, extract_stdout,
-    files::{self, SshSockFile},
+    files::{self, SshSockFile, litterbox_binary_path},
     gen_random_name,
     keys::Keys,
     settings::LitterboxSettings,
@@ -318,6 +318,8 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
     );
     let label = format!("work.litterbox.name={lbx_name}");
 
+    let litterbox_mount = format!("{}:/litterbox:ro", litterbox_binary_path());
+
     let mut full_args = vec![
         "create",
         "--replace",
@@ -329,6 +331,10 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
         "--network",
         settings.network_mode.podman_args(),
         "--security-opt=label=disable", // TODO: use Landlock for better isolation
+        "-v",
+        &litterbox_mount,
+        "--entrypoint",
+        "[\"/litterbox\", \"wait\"]",
         "-e",
         "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
         "-v",

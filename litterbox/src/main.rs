@@ -180,6 +180,10 @@ enum Commands {
         /// The name of the Litterbox
         name: String,
     },
+
+    /// Wait for the Litterbox to finish (for internal use)
+    #[clap(hide = true)]
+    Wait,
 }
 
 fn run_menu() -> Result<()> {
@@ -233,6 +237,10 @@ fn run_menu() -> Result<()> {
             let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
             rt.block_on(run_daemon(&name, password))?;
         }
+        Commands::Wait => loop {
+            // TODO: we should instead wait for all Litterbox clients to close and then exit here
+            std::thread::park();
+        },
     }
     Ok(())
 }

@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
@@ -5,9 +6,9 @@ use std::{fmt::Display, process::Output};
 use tabled::{Table, Tabled};
 
 mod agent;
+mod daemon;
 mod devices;
 mod env;
-mod errors;
 mod files;
 mod keys;
 mod podman;
@@ -16,8 +17,7 @@ mod settings;
 use crate::{
     agent::prompt_confirmation,
     devices::attach_device,
-    errors::LitterboxError,
-    files::{dockerfile_path, write_file},
+    files::{dockerfile_path, wait_for_sessions_to_finish, write_file},
     keys::Keys,
     podman::*,
 };
@@ -43,17 +43,13 @@ impl From<&ContainerDetails> for ContainerTableRow {
     }
 }
 
-fn extract_stdout(output: &Output) -> Result<&str, LitterboxError> {
+fn extract_stdout(output: &Output) -> Result<&str> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        // TODO: perhaps we can just store the COW instead?
-        return Err(LitterboxError::PodmanError(
-            output.status,
-            stderr.into_owned(),
-        ));
+        return Err(anyhow::anyhow!("Podman command failed: {}", stderr));
     }
-    str::from_utf8(&output.stdout).map_err(LitterboxError::ParseOutput)
+    Ok(str::from_utf8(&output.stdout)?)
 }
 
 #[derive(Debug, Copy, Clone, Selectable)]
@@ -87,15 +83,16 @@ impl Display for Template {
     }
 }
 
-fn define_litterbox(lbx_name: &str) -> Result<(), LitterboxError> {
+fn define_litterbox(lbx_name: &str) -> Result<()> {
     let dockerfile = dockerfile_path(lbx_name)?;
     if dockerfile.exists() {
-        return Err(LitterboxError::DockerfileAlreadyExists(dockerfile));
+        return Err(anyhow::anyhow!(
+            "Dockerfile already exists at {}",
+            dockerfile.display()
+        ));
     }
 
-    let template = Template::select("Choose a template:")
-        .prompt()
-        .map_err(LitterboxError::PromptError)?;
+    let template = Template::select("Choose a template:").prompt()?;
 
     write_file(dockerfile.as_path(), template.contents())?;
     info!("Default Dockerfile written to {}", dockerfile.display());
@@ -177,9 +174,24 @@ enum Commands {
         #[arg(long)]
         lbx_name: String,
     },
+
+    /// Run daemon (for internal use)
+    #[clap(hide = true)]
+    Daemon {
+        /// The name of the Litterbox
+        name: String,
+    },
+
+    /// Wait for the Litterbox to finish (for internal use)
+    #[clap(hide = true)]
+    Wait,
+
+    /// Setup home directory (for internal use)
+    #[clap(hide = true)]
+    SetupHome,
 }
 
-fn run_menu() -> Result<(), LitterboxError> {
+fn run_menu() -> Result<()> {
     let args = Args::parse();
     match args.command {
         Commands::Define { name } => {
@@ -193,9 +205,7 @@ fn run_menu() -> Result<(), LitterboxError> {
             println!("Litterbox built!");
         }
         Commands::Enter { name } => {
-            // We wait to create the runtime here since only this one command depends on it.
-            let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
-            rt.block_on(enter_litterbox(&name))?;
+            enter_litterbox(&name)?;
             println!("Exited Litterbox...")
         }
         Commands::List => {
@@ -215,6 +225,23 @@ fn run_menu() -> Result<(), LitterboxError> {
         }
         Commands::Confirm { request, lbx_name } => {
             prompt_confirmation(&request, &lbx_name);
+        }
+        Commands::Daemon { name } => {
+            use std::io::{Read, stdin};
+
+            let mut password = String::new();
+            stdin().read_to_string(&mut password)?;
+            let password = password.trim();
+
+            // We wait to create the runtime here since only this one command depends on it.
+            let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
+            rt.block_on(daemon::run(&name, password))?;
+        }
+        Commands::Wait => {
+            wait_for_sessions_to_finish()?;
+        }
+        Commands::SetupHome => {
+            files::setup_home()?;
         }
     }
     Ok(())
@@ -267,7 +294,7 @@ enum KeyCommands {
     ChangePassword {},
 }
 
-fn process_key_cmd(cmd: KeyCommands) -> Result<(), LitterboxError> {
+fn process_key_cmd(cmd: KeyCommands) -> Result<()> {
     let mut keys = Keys::load()?;
     match cmd {
         KeyCommands::List => {
@@ -302,6 +329,6 @@ fn main() {
     env_logger::init();
 
     if let Err(e) = run_menu() {
-        e.print();
+        eprintln!("Error: {:#}", e);
     }
 }

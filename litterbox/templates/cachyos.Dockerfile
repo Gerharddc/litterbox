@@ -6,7 +6,7 @@ FROM docker.io/cachyos/cachyos-v3:latest
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm sudo wayland mesa vulkan-tools vulkan-radeon vulkan-intel openssh git iputils curl iproute2 rsync
 
-# Install the fish shell for a nicer experience
+# Install the fish shell for a nicer experience (ADAPT TO YOUR OWN NEEDS)
 RUN pacman -S --noconfirm fish
 
 # Install development toolchain and additional package managers (ADAPT TO YOUR OWN NEEDS)
@@ -31,29 +31,12 @@ WORKDIR /home/$USER
 RUN <<'EOF'
 # Create the script using a nested heredoc
 cat <<'EOT' > /prep-home.sh
-#!/usr/bin/env fish
+#!/usr/bin/env sh
 
-set MARKER "$HOME/.home-built"
-
-# If the marker file already exists, exit early
-if test -f "$MARKER"
-    echo "Home already built; skipping."
-    exec $SHELL -l
-end
-
-echo "Building home for the first time..."
-
-# ------------------------------
-# ADAPT THIS TO YOUR OWN NEEDS
-# ------------------------------
-fish_add_path -U "$HOME/.local/bin"
-
-# Create the marker file to prevent re-running
-touch "$MARKER"
-echo "Done."
-
-# Return to the normal shell
-exec $SHELL -l
+# -------------------------------------
+# ADAPT THIS EXAMPLE TO YOUR OWN NEEDS
+# -------------------------------------
+# curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 EOT
 
 chmod +x /prep-home.sh
@@ -62,7 +45,7 @@ EOF
 
 # Set LANG to enable UTF-8 support
 ENV LANG=en_US.UTF-8
+
 # Enter the fish shell by default
 ENV SHELL=fish
 RUN chsh -s /usr/bin/fish $USER
-CMD ["fish", "/prep-home.sh"]

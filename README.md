@@ -83,7 +83,7 @@ During the build process, you will be asked various questions related to how you
 
 ### 3. Enter
 
-Finally you can then enter your Litterbox by running `litterbox enter LBX_NAME`. Once inside the Litterbox you can then start working on your projects!
+Finally you can then enter your Litterbox by running `litterbox enter LBX_NAME`. Once inside the Litterbox you can then start working on your projects! You can enter the same Litterbox multiple times from different terminals - all terminals share the same running container and this container will automatically stop when the last terminal exits.
 
 ### 4. Keys
 
@@ -109,6 +109,10 @@ Litterbox is very similar to DevContainers in that is uses Dockerfiles and conta
 
 Litterbox is most similar to Distrobox in terms of its design and functionality. The primary difference is that Distrobox does not aim to provide any isolation/sandboxing at all whereas Litterbox has a strong emphasis on providing it. Distrobox avoids sandboxing in order to provide more seamless integration between applications running inside the Distrobox and the host system. It tries to solve the problem of running software intended for a different distro as if it is running natively. Litterbox instead sacrificies much of the convenience that Distrobox provides in exchange for some isolation/sandboxing capabilities.
 
+## Stability
+
+Litterbox is still early in its development lifecycle and not particularly stable yet.
+
 ## TODO
 
 Litterbox is still very much WIP with many missing features or required improvements. Following is a list of some important pieces that are still missing:
@@ -119,6 +123,7 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [x] Add function to approve some SSH agent requests for the duration of the session.
 - [x] Add optional support for using host network.
 - [x] Add optional support for port forwarding with the default "pasta" networking.
+- [x] Support entering a Litterbox multiple times.
 - [ ] Add a "prune" command to get rid of dangling images.
 - [ ] Add support for more granular network settings.
 - [ ] Show SSH key name when prompting for approval. (Currently blocked by https://github.com/Eugeny/russh/issues/602)

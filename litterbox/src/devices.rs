@@ -1,17 +1,13 @@
+use anyhow::{Context, Result, ensure};
 use log::{debug, info};
 use nix::sys::stat::{SFlag, major, minor, stat};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::{errors::LitterboxError, files::lbx_home_path};
+use crate::files::lbx_home_path;
 
-fn mknod(
-    major_num: u64,
-    minor_num: u64,
-    dev_type: &str,
-    path: &Path,
-) -> Result<(), LitterboxError> {
+fn mknod(major_num: u64, minor_num: u64, dev_type: &str, path: &Path) -> Result<()> {
     println!(
         "Root permissions are required to create a device node. Please enter your password if prompted."
     );
@@ -25,23 +21,18 @@ fn mknod(
             &minor_num.to_string(),
         ])
         .spawn()
-        .map_err(|e| LitterboxError::RunCommand(e, "mknod"))?;
+        .context("Failed to run mknod command")?;
 
-    let res = child
-        .wait()
-        .map_err(|e| LitterboxError::RunCommand(e, "mknod"))?;
+    let res = child.wait().context("Failed to run mknod command")?;
 
-    if !res.success() {
-        Err(LitterboxError::CommandFailed(res, "mknod"))
-    } else {
-        Ok(())
-    }
+    ensure!(res.success(), "mknod command failed");
+    Ok(())
 }
 
-pub fn attach_device(lbx_name: &str, device_path: &str) -> Result<PathBuf, LitterboxError> {
+pub fn attach_device(lbx_name: &str, device_path: &str) -> Result<PathBuf> {
     let sub_path = device_path
         .strip_prefix("/dev/")
-        .ok_or(LitterboxError::InvalidDevicePath(device_path.to_string()))?;
+        .with_context(|| format!("Invalid device path: {device_path}"))?;
     debug!("sub_path: {:#?}", sub_path);
 
     let lbx_path = lbx_home_path(lbx_name)?;
@@ -49,7 +40,7 @@ pub fn attach_device(lbx_name: &str, device_path: &str) -> Result<PathBuf, Litte
     let dest_path = lbx_path.join("dev").join(sub_path);
     debug!("dest_path: {:#?}", dest_path);
 
-    let metadata = stat(device_path).map_err(LitterboxError::Nix)?;
+    let metadata = stat(device_path).context("Failed to stat device")?;
     let rdev = metadata.st_rdev;
     let kind = SFlag::from_bits_truncate(metadata.st_mode);
 
@@ -71,8 +62,7 @@ pub fn attach_device(lbx_name: &str, device_path: &str) -> Result<PathBuf, Litte
     let output_dir = dest_path
         .parent()
         .expect("Destination path should have parent.");
-    fs::create_dir_all(output_dir)
-        .map_err(|e| LitterboxError::DirUncreatable(e, output_dir.to_path_buf()))?;
+    fs::create_dir_all(output_dir).context("Failed to create output directory")?;
     debug!("Output dir ready!");
 
     mknod(major_num, minor_num, dev_type, &dest_path)?;

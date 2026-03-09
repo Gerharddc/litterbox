@@ -128,6 +128,39 @@ pub fn read_file(path: &Path) -> Result<String> {
     Ok(fs::read_to_string(path)?)
 }
 
+pub fn wait_for_sessions_to_finish() -> Result<()> {
+    use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
+
+    let session_lock_path = Path::new("/session.lock");
+    let is_empty = || match std::fs::read_to_string(session_lock_path) {
+        Ok(content) => content.trim().is_empty(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
+        Err(e) => {
+            log::error!("Failed to read session lock file: {}", e);
+            false
+        }
+    };
+
+    if is_empty() {
+        println!("Session already empty, Litterbox finished.");
+        return Ok(());
+    }
+
+    let inotify = Inotify::init(InitFlags::empty())?;
+    inotify.add_watch(session_lock_path, AddWatchFlags::IN_MODIFY)?;
+
+    println!("Litterbox started, waiting for session to become empty.");
+    loop {
+        let _ = inotify.read_events()?;
+        if is_empty() {
+            break;
+        }
+    }
+    println!("Session empty, Litterbox finished.");
+
+    Ok(())
+}
+
 pub struct SshSockFile {
     path: PathBuf,
 }

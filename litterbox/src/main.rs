@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
-use std::{fmt::Display, path::Path, process::Output};
+use std::{fmt::Display, process::Output};
 use tabled::{Table, Tabled};
 
 mod agent;
@@ -16,7 +16,7 @@ mod settings;
 use crate::{
     agent::prompt_confirmation,
     devices::attach_device,
-    files::{dockerfile_path, write_file},
+    files::{dockerfile_path, wait_for_sessions_to_finish, write_file},
     keys::{Keys, run_daemon},
     podman::*,
 };
@@ -233,36 +233,7 @@ fn run_menu() -> Result<()> {
             rt.block_on(run_daemon(&name, password))?;
         }
         Commands::Wait => {
-            // TODO: move this complex implimentation to files.rs
-
-            use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
-
-            let session_lock_path = Path::new("/session.lock");
-            let is_empty = || match std::fs::read_to_string(session_lock_path) {
-                Ok(content) => content.trim().is_empty(),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
-                Err(e) => {
-                    log::error!("Failed to read session lock file: {}", e);
-                    false
-                }
-            };
-
-            if is_empty() {
-                println!("Session already empty, Litterbox finished.");
-                return Ok(());
-            }
-
-            let inotify = Inotify::init(InitFlags::empty())?;
-            inotify.add_watch(session_lock_path, AddWatchFlags::IN_MODIFY)?;
-
-            println!("Litterbox started, waiting for session to become empty.");
-            loop {
-                let _ = inotify.read_events()?;
-                if is_empty() {
-                    break;
-                }
-            }
-            println!("Session empty, Litterbox finished.");
+            wait_for_sessions_to_finish()?;
         }
     }
     Ok(())

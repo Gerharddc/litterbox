@@ -1,8 +1,6 @@
 use anyhow::{Context, Result, anyhow, ensure};
 use inquire::{Confirm, Password};
 use log::{debug, info, warn};
-use nix::sys::signal::kill;
-use nix::unistd::Pid;
 use serde::Deserialize;
 use std::{
     fs,
@@ -11,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    define_litterbox, env, extract_stdout,
+    daemon, define_litterbox, env, extract_stdout,
     files::{self, SshSockFile},
     gen_random_name,
     keys::Keys,
@@ -440,21 +438,7 @@ pub fn enter_litterbox(lbx_name: &str) -> Result<()> {
         .ok_or_else(|| anyhow!("No container found for {}", lbx_name))?;
     let container_id = container.id;
 
-    let daemon_lock = files::daemon_lock_path(lbx_name)?;
-    let daemon_running = daemon_lock.exists() && {
-        if let Ok(pid_str) = std::fs::read_to_string(&daemon_lock) {
-            if let Ok(pid) = pid_str.trim().parse::<u32>() {
-                let pid = Pid::from_raw(pid as i32);
-                kill(pid, None).is_ok()
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    };
-
-    if !daemon_running {
+    if !daemon::is_running(lbx_name)? {
         if is_container_running(lbx_name)? {
             warn!("Daemon was not running but container was. Restarting daemon...");
         }

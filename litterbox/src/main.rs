@@ -6,6 +6,7 @@ use std::{fmt::Display, process::Output};
 use tabled::{Table, Tabled};
 
 mod agent;
+mod daemon;
 mod devices;
 mod env;
 mod files;
@@ -17,7 +18,7 @@ use crate::{
     agent::prompt_confirmation,
     devices::attach_device,
     files::{dockerfile_path, wait_for_sessions_to_finish, write_file},
-    keys::{Keys, run_daemon},
+    keys::Keys,
     podman::*,
 };
 
@@ -230,7 +231,7 @@ fn run_menu() -> Result<()> {
 
             // We wait to create the runtime here since only this one command depends on it.
             let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
-            rt.block_on(run_daemon(&name, password))?;
+            rt.block_on(daemon::run(&name, password))?;
         }
         Commands::Wait => {
             wait_for_sessions_to_finish()?;

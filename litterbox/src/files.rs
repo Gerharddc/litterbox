@@ -4,12 +4,6 @@ use std::path::{Path, PathBuf};
 
 use crate::env;
 
-pub fn litterbox_binary_path() -> String {
-    std::env::args()
-        .next()
-        .expect("Binary path should be defined.")
-}
-
 fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf> {
     let home_dir = env::home_dir()?;
     let home_path = Path::new(&home_dir);

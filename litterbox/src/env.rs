@@ -17,3 +17,9 @@ pub fn wayland_display() -> Result<String> {
 pub fn xdg_runtime_dir() -> Result<String> {
     get_env("XDG_RUNTIME_DIR")
 }
+
+pub fn litterbox_binary_path() -> String {
+    std::env::args()
+        .next()
+        .expect("Binary path should be defined.")
+}

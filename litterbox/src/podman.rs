@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     define_litterbox, env, extract_stdout,
-    files::{self, SshSockFile, litterbox_binary_path},
+    files::{self, SshSockFile},
     gen_random_name,
     keys::Keys,
     settings::LitterboxSettings,
@@ -309,7 +309,7 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
     );
     let label = format!("work.litterbox.name={lbx_name}");
 
-    let litterbox_mount = format!("{}:/litterbox:ro", litterbox_binary_path());
+    let litterbox_mount = format!("{}:/litterbox:ro", env::litterbox_binary_path());
 
     let session_lock_path = files::session_lock_path(lbx_name)?;
     let session_lock_path_str = session_lock_path
@@ -465,7 +465,7 @@ pub fn enter_litterbox(lbx_name: &str) -> Result<()> {
         let log_file = files::daemon_log_file(lbx_name)?;
         let log_file_clone = log_file.try_clone()?;
 
-        let mut cmd = Command::new(files::litterbox_binary_path());
+        let mut cmd = Command::new(env::litterbox_binary_path());
         cmd.args(["daemon", lbx_name]);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::from(log_file));

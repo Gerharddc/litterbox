@@ -8,8 +8,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use strum_macros::{Display, EnumString};
 use tokio::process::Command;
 
+use crate::env::litterbox_binary_path;
 use crate::extract_stdout;
-use crate::files::{SshSockFile, litterbox_binary_path};
+use crate::files::SshSockFile;
 
 #[derive(Clone)]
 struct AskAgent {

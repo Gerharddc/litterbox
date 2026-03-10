@@ -384,11 +384,6 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
         ]);
     }
 
-    if settings.enable_kvm {
-        debug!("Appending KVM device args");
-        full_args.extend_from_slice(&["--device", "/dev/kvm"]);
-    }
-
     let pipewire_path = files::pipewire_socket_path()?;
     let pipewire_path = pipewire_path.to_str().expect("Path should be valid string");
     let pipewire_socket_mount = format!("{pipewire_path}:/tmp/pipewire-0");

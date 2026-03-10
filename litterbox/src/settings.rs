@@ -60,7 +60,6 @@ pub struct LitterboxSettings {
     pub support_ping: bool,
     pub support_tuntap: bool,
     pub packet_forwarding: bool,
-    pub enable_kvm: bool,
     pub expose_pipewire: bool,
 
     // Settings added later which need defaults:
@@ -164,16 +163,6 @@ impl LitterboxSettings {
             )
             .prompt()?;
 
-        let enable_kvm = if Path::new("/dev/kfd").exists() {
-            Confirm::new("Do you want to enable KVM support in this Litterbox?")
-                .with_default(existing.map(|s| s.enable_kvm).unwrap_or(false))
-                .with_help_message("This will expose '/dev/kvm' to the Litterbox.")
-                .prompt()?
-        } else {
-            debug!("/dev/kvm not found on host system, user not prompted to expose it.");
-            false
-        };
-
         let expose_kfd = if Path::new("/dev/kfd").exists() {
             Confirm::new("Do you want to expose /dev/kfd inside this Litterbox?")
                 .with_default(existing.map(|s| s.expose_kfd).unwrap_or(false))
@@ -218,7 +207,6 @@ impl LitterboxSettings {
             support_ping,
             support_tuntap,
             packet_forwarding,
-            enable_kvm,
             unconfine_seccomp,
             expose_pipewire,
             keep_groups,

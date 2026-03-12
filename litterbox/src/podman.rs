@@ -529,6 +529,51 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
     wait_for_podman(child)?;
     info!("Image for Litterbox deleted!");
 
-    // TODO: ask the user if they also want the home dir deleted
+    let home_path = files::lbx_home_path(lbx_name)?;
+    if home_path.exists() {
+        let should_delete_home =
+            Confirm::new("Do you want to delete the home directory for this Litterbox?")
+                .with_default(false)
+                .with_help_message(&format!("This will delete {}", home_path.display()))
+                .prompt();
+
+        match should_delete_home {
+            Ok(true) => {
+                fs::remove_dir_all(&home_path)?;
+                info!("Home directory deleted!");
+            }
+            _ => {
+                println!("Skipping home directory deletion.");
+            }
+        }
+    }
+
+    let dockerfile_path = files::dockerfile_path(lbx_name)?;
+    let settings_path = files::settings_path(lbx_name)?;
+    if dockerfile_path.exists() || settings_path.exists() {
+        let should_delete_definition =
+            Confirm::new("Do you want to delete the definition files for this Litterbox?")
+                .with_default(false)
+                .with_help_message("This will delete the Dockerfile and settings file")
+                .prompt();
+
+        match should_delete_definition {
+            Ok(true) => {
+                if dockerfile_path.exists() {
+                    fs::remove_file(&dockerfile_path)?;
+                    info!("Dockerfile deleted!")
+                }
+
+                if settings_path.exists() {
+                    fs::remove_file(&settings_path)?;
+                    info!("Settings file deleted!")
+                }
+            }
+            _ => {
+                println!("Skipping definition file deletion.");
+            }
+        }
+    }
+
     Ok(())
 }

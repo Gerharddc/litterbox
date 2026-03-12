@@ -111,7 +111,7 @@ Litterbox is most similar to Distrobox in terms of its design and functionality.
 
 ## Stability
 
-Litterbox is still early in its development lifecycle and not particularly stable yet.
+Litterbox is still early in its development lifecycle and not particularly stable yet. Litterbox does not follow proper "semver" yet since we want to reserve 1.0.0 to signify a decent level of stability. Currently, (in the context of a version specified as `x.y.z`), changes in `y` will indicate breaking changes. It is therefore important to keep track of release notes for breaking changes when updating as you might have to make changes to your Litterbox definitions and rebuild them.
 
 ## TODO
 

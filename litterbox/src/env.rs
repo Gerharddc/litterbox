@@ -23,7 +23,9 @@ pub fn shell() -> Result<String> {
 }
 
 pub fn litterbox_binary_path() -> String {
-    std::env::args()
-        .next()
+    std::env::current_exe()
         .expect("Binary path should be defined.")
+        .to_str()
+        .expect("Binary path should be valid.")
+        .to_string()
 }

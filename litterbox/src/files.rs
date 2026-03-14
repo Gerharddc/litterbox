@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use std::fs::{self, File};
-use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -223,7 +222,5 @@ pub fn setup_home() -> Result<()> {
         println!("Done.");
     }
 
-    let shell = env::shell()?;
-    let _ = Command::new(&shell).arg("-l").exec();
     Ok(())
 }

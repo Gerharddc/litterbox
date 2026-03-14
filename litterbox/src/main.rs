@@ -2,7 +2,13 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
-use std::{fmt::Display, process::Output};
+use std::{
+    ffi::OsString,
+    fmt::Display,
+    os::unix::prelude::CommandExt,
+    path::PathBuf,
+    process::{Command, Output},
+};
 use tabled::{Table, Tabled};
 
 mod agent;
@@ -140,6 +146,26 @@ enum Commands {
     Enter {
         /// The name of the Litterbox to enter
         name: String,
+
+        /// Make STDIN available to the contained process. Defaults to "true" if
+        /// COMMAND is not supplied
+        #[arg(long, short, default_value_t = false)]
+        interactive: bool,
+
+        /// Allocate a pseudo-TTY. Defaults to "true" if COMMAND is not supplied
+        #[arg(long, short, default_value_t = false)]
+        tty: bool,
+
+        /// Working directory inside the container
+        #[arg(long, short)]
+        workdir: Option<PathBuf>,
+
+        /// The command to execute instead of the login shell
+        command: Option<OsString>,
+
+        /// Additional arguments passed to the command
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
     },
 
     /// Delete an existing Litterbox
@@ -187,8 +213,16 @@ enum Commands {
     Wait,
 
     /// Setup home directory (for internal use)
-    #[clap(hide = true)]
-    SetupHome,
+    // -h and -V might conflict with a command's arguments
+    #[clap(hide = true, disable_help_flag = true, disable_version_flag = true)]
+    SetupHome {
+        /// The command to execute instead of the login shell
+        command: Option<OsString>,
+
+        /// Additional arguments passed to the command
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
+    },
 }
 
 fn run_menu() -> Result<()> {
@@ -204,8 +238,15 @@ fn run_menu() -> Result<()> {
             build_litterbox(&name, &user)?;
             println!("Litterbox built!");
         }
-        Commands::Enter { name } => {
-            enter_litterbox(&name)?;
+        Commands::Enter {
+            name,
+            interactive,
+            tty,
+            workdir,
+            command,
+            args,
+        } => {
+            enter_litterbox(&name, interactive, tty, workdir, command, args)?;
             println!("Exited Litterbox...")
         }
         Commands::List => {
@@ -240,8 +281,26 @@ fn run_menu() -> Result<()> {
         Commands::Wait => {
             wait_for_sessions_to_finish()?;
         }
-        Commands::SetupHome => {
+        Commands::SetupHome { command, args } => {
             files::setup_home()?;
+
+            let mut cmd = if let Some(command) = command {
+                let mut cmd = Command::new(&command);
+                cmd.args(args);
+                cmd
+            } else {
+                let mut cmd = Command::new(&env::shell()?);
+                cmd.arg("-l");
+                cmd
+            };
+
+            // On success it never returns
+            let cause = cmd.exec();
+
+            println!(
+                "Failed to execute program '{}': {cause}",
+                cmd.get_program().to_string_lossy()
+            );
         }
     }
     Ok(())

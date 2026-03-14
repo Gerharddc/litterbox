@@ -3,8 +3,9 @@ use inquire::{Confirm, Password};
 use log::{debug, info, warn};
 use serde::Deserialize;
 use std::{
+    ffi::OsString,
     fs,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
 
@@ -428,7 +429,14 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn enter_litterbox(lbx_name: &str) -> Result<()> {
+pub fn enter_litterbox(
+    lbx_name: &str,
+    interactive: bool,
+    tty: bool,
+    workdir: Option<PathBuf>,
+    command: Option<OsString>,
+    command_args: Vec<OsString>,
+) -> Result<()> {
     let container = get_container_details(lbx_name)?
         .ok_or_else(|| anyhow!("No container found for {}", lbx_name))?;
     let container_id = container.id;
@@ -480,10 +488,33 @@ pub fn enter_litterbox(lbx_name: &str) -> Result<()> {
         println!("Container already running, just attaching...")
     }
 
-    let exec_child = Command::new("podman")
-        .args(["exec", "-it", &container_id, "/litterbox", "setup-home"])
-        .spawn()
-        .context("Failed to run podman command")?;
+    let mut exec_child = Command::new("podman");
+
+    exec_child.arg("exec");
+
+    // Assume -t if we are launching the login shell
+    if tty || command.is_none() {
+        exec_child.arg("--tty");
+    }
+
+    // Assume -i if we are launching the login shell
+    if interactive || command.is_none() {
+        exec_child.arg("--interactive");
+    }
+
+    if let Some(workdir) = workdir {
+        exec_child.arg("--workdir");
+        exec_child.arg(workdir.into_os_string());
+    }
+
+    exec_child.args([&container_id, "/litterbox", "setup-home"]);
+
+    if let Some(command) = command {
+        exec_child.arg(command);
+        exec_child.args(command_args);
+    }
+
+    let exec_child = exec_child.spawn().context("Failed to run podman command")?;
     let _ = wait_for_podman(exec_child);
 
     files::remove_pid_from_session_lockfile(&session_lock, my_pid)?;

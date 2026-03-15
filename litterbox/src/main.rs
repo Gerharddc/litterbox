@@ -284,15 +284,20 @@ fn run_menu() -> Result<()> {
         Commands::SetupHome { command, args } => {
             files::setup_home()?;
 
-            let mut cmd = if let Some(command) = command {
-                let mut cmd = Command::new(&command);
-                cmd.args(args);
-                cmd
-            } else {
-                let mut cmd = Command::new(&env::shell()?);
-                cmd.arg("-l");
-                cmd
-            };
+            let mut cmd = Command::new(&env::shell()?);
+            cmd.arg("-l");
+
+            if let Some(mut command) = command {
+                // We can't use Command::args for "command" because shells
+                // generally expect a single argument for the "-c" option
+                for arg in args {
+                    command.push(" ");
+                    command.push(arg);
+                }
+
+                cmd.arg("-c");
+                cmd.arg(command);
+            }
 
             // On success it never returns
             let cause = cmd.exec();

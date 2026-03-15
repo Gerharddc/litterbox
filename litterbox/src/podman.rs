@@ -183,6 +183,12 @@ fn wait_for_podman(mut child: Child) -> Result<()> {
     Ok(())
 }
 
+async fn wait_for_podman_async(child: &mut tokio::process::Child) -> Result<()> {
+    let res = child.wait().await.context("Failed to run podman command")?;
+    ensure!(res.success(), "Podman command failed");
+    Ok(())
+}
+
 pub fn build_image(lbx_name: &str, user: &str) -> Result<()> {
     let image_name = match get_image_details(lbx_name)? {
         Some(details) => {
@@ -488,34 +494,49 @@ pub fn enter_litterbox(
         println!("Container already running, just attaching...")
     }
 
-    let mut exec_child = Command::new("podman");
+    tokio::runtime::Runtime::new()
+        .expect("Tokio runtime should start")
+        .block_on(async move {
+            use tokio::process::Command;
 
-    exec_child.arg("exec");
+            let mut exec_child = Command::new("podman");
 
-    // Assume -t if we are launching the login shell
-    if tty || command.is_none() {
-        exec_child.arg("--tty");
-    }
+            exec_child.arg("exec");
 
-    // Assume -i if we are launching the login shell
-    if interactive || command.is_none() {
-        exec_child.arg("--interactive");
-    }
+            // Assume -t if we are launching the login shell
+            if tty || command.is_none() {
+                exec_child.arg("--tty");
+            }
 
-    if let Some(workdir) = workdir {
-        exec_child.arg("--workdir");
-        exec_child.arg(workdir.into_os_string());
-    }
+            // Assume -i if we are launching the login shell
+            if interactive || command.is_none() {
+                exec_child.arg("--interactive");
+            }
 
-    exec_child.args([&container_id, "/litterbox", "setup-home"]);
+            if let Some(workdir) = workdir {
+                exec_child.arg("--workdir");
+                exec_child.arg(workdir.into_os_string());
+            }
 
-    if let Some(command) = command {
-        exec_child.arg(command);
-        exec_child.args(command_args);
-    }
+            exec_child.args([&container_id, "/litterbox", "setup-home"]);
 
-    let exec_child = exec_child.spawn().context("Failed to run podman command")?;
-    let _ = wait_for_podman(exec_child);
+            if let Some(command) = command {
+                exec_child.arg(command);
+                exec_child.args(command_args);
+            }
+
+            let mut exec_child = exec_child.spawn().context("Failed to run podman command")?;
+
+            println!("Waiting for podman");
+            tokio::select! {
+                _ = wait_for_podman_async(&mut exec_child) => {}
+                _ = tokio::signal::ctrl_c() => {
+                    let _ = exec_child.kill().await;
+                }
+            }
+
+            Result::<()>::Ok(())
+        })?;
 
     files::remove_pid_from_session_lockfile(&session_lock, my_pid)?;
     debug!("Litterbox finished.");

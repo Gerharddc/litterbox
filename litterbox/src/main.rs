@@ -213,10 +213,10 @@ enum Commands {
     #[clap(hide = true)]
     Wait,
 
-    /// Setup home directory (for internal use)
+    /// Container entrypoint (for internal use)
     // -h and -V might conflict with a command's arguments
     #[clap(hide = true, disable_help_flag = true, disable_version_flag = true)]
-    SetupHome {
+    Entrypoint {
         /// The command to execute instead of the login shell
         command: Option<OsString>,
 
@@ -282,7 +282,7 @@ fn run_menu() -> Result<()> {
         Commands::Wait => {
             wait_for_sessions_to_finish()?;
         }
-        Commands::SetupHome { command, args } => {
+        Commands::Entrypoint { command, args } => {
             files::setup_home()?;
 
             let mut cmd = Command::new(&env::shell()?);

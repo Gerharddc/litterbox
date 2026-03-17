@@ -518,7 +518,7 @@ pub fn enter_litterbox(
                 exec_child.arg(workdir.into_os_string());
             }
 
-            exec_child.args([&container_id, "/litterbox", "setup-home"]);
+            exec_child.args([&container_id, "/litterbox", "entrypoint"]);
 
             if let Some(command) = command {
                 exec_child.arg(command);

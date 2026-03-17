@@ -1,6 +1,6 @@
 [package]
 name = "litterbox"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 default-run = "litterbox"
 
@@ -18,7 +18,7 @@ ron = "0.12"
 argon2 = "0.5"
 env_logger = "0.11"
 log = "0.4"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt", "process", "signal"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 eframe = "0.33"
 egui_extras = { version="0.33", features=["svg"] }

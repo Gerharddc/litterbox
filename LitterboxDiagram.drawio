@@ -1,0 +1,146 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0" version="29.6.3">
+  <diagram name="Page-1" id="LlLCgUSFVaozaI0jgMQj">
+    <mxGraphModel dx="1715" dy="950" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillStyle=auto;dashed=1;dashPattern=8 8;" value="" vertex="1">
+          <mxGeometry height="430" width="370" x="590" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="DUsu039GC-w56qL2mdB9-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Enter 1" vertex="1">
+          <mxGeometry height="60" width="120" x="370" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="DUsu039GC-w56qL2mdB9-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Daemon" vertex="1">
+          <mxGeometry height="60" width="120" x="370" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="DUsu039GC-w56qL2mdB9-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Wait" vertex="1">
+          <mxGeometry height="60" width="120" x="610" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="DUsu039GC-w56qL2mdB9-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Confirm" vertex="1">
+          <mxGeometry height="60" width="120" x="370" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="DUsu039GC-w56qL2mdB9-5" edge="1" parent="1" source="DUsu039GC-w56qL2mdB9-1" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" target="DUsu039GC-w56qL2mdB9-2" value="Spawn">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="425" y="550" as="sourcePoint" />
+            <mxPoint x="475" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-2" edge="1" parent="1" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="DUsu039GC-w56qL2mdB9-4" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="400" y="420" as="sourcePoint" />
+            <mxPoint x="450" y="370" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-3" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Key Request" vertex="1">
+          <mxGeometry relative="1" x="-0.0162" as="geometry">
+            <mxPoint y="-21" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-4" edge="1" parent="1" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="460" y="420" as="sourcePoint" />
+            <mxPoint x="460" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-5" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-4" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Password Request" vertex="1">
+          <mxGeometry relative="1" x="-0.0162" as="geometry">
+            <mxPoint y="19" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="SetupHome 1" vertex="1">
+          <mxGeometry height="60" width="120" x="610" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-8" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="DUsu039GC-w56qL2mdB9-3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="490" y="570" as="sourcePoint" />
+            <mxPoint x="540" y="520" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-9" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-8" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Spawn" vertex="1">
+          <mxGeometry relative="1" x="0.0298" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-10" edge="1" parent="1" source="DUsu039GC-w56qL2mdB9-1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="3NI2oor_4DyrBC_jmbMr-6" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="490" y="600" as="sourcePoint" />
+            <mxPoint x="540" y="550" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-12" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-10" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Spawn" vertex="1">
+          <mxGeometry relative="1" x="-0.1385" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1" value="Container" vertex="1">
+          <mxGeometry height="30" width="60" x="590" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Shell etc." vertex="1">
+          <mxGeometry height="60" width="120" x="820" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-16" edge="1" parent="1" source="3NI2oor_4DyrBC_jmbMr-6" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="3NI2oor_4DyrBC_jmbMr-14" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="870" y="530" as="sourcePoint" />
+            <mxPoint x="920" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-17" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-16" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Exec" vertex="1">
+          <mxGeometry relative="1" x="0.0159" y="1" as="geometry">
+            <mxPoint y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-18" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Enter N" vertex="1">
+          <mxGeometry height="60" width="120" x="370" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-19" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;fontSize=20;" value="..." vertex="1">
+          <mxGeometry height="30" width="60" x="400" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-20" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;fontSize=20;" value="..." vertex="1">
+          <mxGeometry height="30" width="60" x="640" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-21" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="SetupHome N" vertex="1">
+          <mxGeometry height="60" width="120" x="610" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Shell etc." vertex="1">
+          <mxGeometry height="60" width="120" x="820" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-23" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="730" y="709.71" as="sourcePoint" />
+            <mxPoint x="820" y="709.71" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-24" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-23" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Exec" vertex="1">
+          <mxGeometry relative="1" x="0.0159" y="1" as="geometry">
+            <mxPoint y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-25" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="490" y="709.76" as="sourcePoint" />
+            <mxPoint x="610" y="709.76" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-26" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-25" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Spawn" vertex="1">
+          <mxGeometry relative="1" x="-0.1385" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-27" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontStyle=2" value="SSH Agent Socket" vertex="1">
+          <mxGeometry height="60" width="120" x="610" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-29" edge="1" parent="1" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="3NI2oor_4DyrBC_jmbMr-27" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="490" y="450" as="sourcePoint" />
+            <mxPoint x="540" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-30" connectable="0" parent="3NI2oor_4DyrBC_jmbMr-29" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Key Requests" vertex="1">
+          <mxGeometry relative="1" x="-0.0127" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

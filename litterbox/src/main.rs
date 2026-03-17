@@ -98,7 +98,9 @@ fn define_litterbox(lbx_name: &str) -> Result<()> {
     let template = Template::select("Choose a template:").prompt()?;
 
     write_file(dockerfile.as_path(), template.contents())?;
+
     info!("Default Dockerfile written to {}", dockerfile.display());
+
     Ok(())
 }
 
@@ -234,73 +236,72 @@ enum Commands {
     },
 }
 
-fn run_menu() -> Result<()> {
-    let args = Args::parse();
-    match args.command {
-        Commands::Define { name } => {
-            define_litterbox(&name)?;
-            println!("Litterbox defined!");
-        }
-        Commands::Build { name } => {
-            build_image(&name)?;
-            build_litterbox(&name)?;
-            println!("Litterbox built!");
-        }
-        Commands::Enter {
-            name,
-            interactive,
-            tty,
-            workdir,
-            command,
-            args,
-            root,
-        } => {
-            enter_litterbox(&name, interactive, tty, workdir, command, args, root)?;
-            println!("Exited Litterbox...")
-        }
-        Commands::List => {
-            let containers = list_containers()?;
-            let table_rows: Vec<ContainerTableRow> =
-                containers.0.iter().map(|c| c.into()).collect();
-            let table = Table::new(table_rows);
-            println!("{table}");
-        }
-        Commands::Delete { name } => {
-            delete_litterbox(&name)?;
-        }
-        Commands::Keys(cmd) => process_key_cmd(cmd)?,
-        Commands::Device { name, path } => {
-            let dest_path = attach_device(&name, &path)?;
-            println!("Device attached at {:#?}!", dest_path);
-        }
-        Commands::Confirm { request, lbx_name } => {
-            prompt_confirmation(&request, &lbx_name);
-        }
-        Commands::Daemon { name } => {
-            use std::io::{Read, stdin};
+impl Commands {
+    fn run(self) -> Result<()> {
+        match self {
+            Commands::Confirm { request, lbx_name } => prompt_confirmation(&request, &lbx_name),
 
-            let mut password = String::new();
-            stdin().read_to_string(&mut password)?;
-            let password = password.trim();
+            Commands::Define { name } => define_litterbox(&name)?,
 
-            // We wait to create the runtime here since only this one command depends on it.
-            let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
-            rt.block_on(daemon::run(&name, password))?;
+            Commands::Delete { name } => delete_litterbox(&name)?,
+
+            Commands::Keys(cmd) => cmd.run()?,
+
+            Commands::Wait => wait_for_sessions_to_finish()?,
+
+            Commands::Enter {
+                name,
+                interactive,
+                tty,
+                workdir,
+                command,
+                args,
+                root,
+            } => enter_litterbox(&name, interactive, tty, workdir, command, args, root)?,
+
+            Commands::Build { name } => {
+                build_image(&name)?;
+                build_litterbox(&name)?;
+            }
+
+            Commands::List => {
+                let containers = list_containers()?;
+                let table_rows: Vec<ContainerTableRow> =
+                    containers.0.iter().map(|c| c.into()).collect();
+                let table = Table::new(table_rows);
+
+                println!("{table}");
+            }
+
+            Commands::Device { name, path } => {
+                let dest_path = attach_device(&name, &path)?;
+
+                println!("Device attached at {:#?}!", dest_path);
+            }
+
+            Commands::Daemon { name } => {
+                use std::io::{Read, stdin};
+
+                let mut password = String::new();
+                stdin().read_to_string(&mut password)?;
+                let password = password.trim();
+
+                // We wait to create the runtime here since only this one command depends on it.
+                let rt = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
+                rt.block_on(daemon::run(&name, password))?;
+            }
+
+            Commands::Entrypoint {
+                root,
+                uid,
+                gid,
+                command,
+                args,
+            } => entrypoint(root, uid, gid, command, args)?,
         }
-        Commands::Wait => {
-            wait_for_sessions_to_finish()?;
-        }
-        Commands::Entrypoint {
-            root,
-            uid,
-            gid,
-            command,
-            args,
-        } => {
-            entrypoint(root, uid, gid, command, args)?;
-        }
+
+        Ok(())
     }
-    Ok(())
 }
 
 #[derive(Subcommand, Debug)]
@@ -358,39 +359,33 @@ enum KeyCommands {
     ChangePassword {},
 }
 
-fn process_key_cmd(cmd: KeyCommands) -> Result<()> {
-    let mut keys = Keys::load()?;
+impl KeyCommands {
+    fn run(self) -> Result<()> {
+        let mut keys = Keys::load()?;
 
-    match cmd {
-        KeyCommands::List => {
-            keys.print_list();
+        match self {
+            KeyCommands::Attach {
+                key_name,
+                litterbox_name,
+            } => keys.attach(&key_name, &litterbox_name)?,
+
+            KeyCommands::ChangePassword {} => keys.change_password()?,
+
+            KeyCommands::Delete { name } => keys.delete(&name)?,
+
+            KeyCommands::Detach { key_name } => keys.detach(&key_name)?,
+
+            KeyCommands::Generate { name } => keys.generate(&name)?,
+
+            KeyCommands::Import { name, path } => keys.import_key(&name, path)?,
+
+            KeyCommands::List => keys.print_list(),
+
+            KeyCommands::Print { key_name, private } => keys.print(&key_name, private)?,
         }
-        KeyCommands::Generate { name } => {
-            keys.generate(&name)?;
-        }
-        KeyCommands::Delete { name } => {
-            keys.delete(&name)?;
-        }
-        KeyCommands::Attach {
-            key_name,
-            litterbox_name,
-        } => {
-            keys.attach(&key_name, &litterbox_name)?;
-        }
-        KeyCommands::Detach { key_name } => {
-            keys.detach(&key_name)?;
-        }
-        KeyCommands::Print { key_name, private } => {
-            keys.print(&key_name, private)?;
-        }
-        KeyCommands::ChangePassword {} => {
-            keys.change_password()?;
-        }
-        KeyCommands::Import { name, path } => {
-            keys.import_key(&name, path)?;
-        }
+
+        Ok(())
     }
-    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -401,8 +396,11 @@ fn main() -> Result<()> {
         eprintln!(
             "run0/sudo is not supported inside this session. Use 'litterbox enter --root <name>' to enter as root."
         );
+
         return Ok(());
     }
 
-    run_menu()
+    let args = Args::parse();
+
+    args.command.run()
 }

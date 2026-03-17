@@ -436,7 +436,7 @@ pub fn enter_litterbox(
     root: bool,
 ) -> Result<()> {
     let container = get_container_details(lbx_name)?
-        .ok_or_else(|| anyhow!("No container found for {}", lbx_name))?;
+        .ok_or_else(|| anyhow!("No container found for '{lbx_name}'"))?;
     let container_id = container.id;
 
     if !daemon::is_running(lbx_name)? {
@@ -458,11 +458,11 @@ pub fn enter_litterbox(
 
         let mut daemon_child = cmd.spawn().context("Failed to run Litterbox daemon")?;
 
-        if let Some(ref pwd) = password
-            && let Some(stdin) = daemon_child.stdin.take()
+        if let Some(pwd) = password
+            && let Some(mut stdin) = daemon_child.stdin.take()
         {
             use std::io::Write;
-            let mut stdin = stdin;
+
             stdin
                 .write_all(pwd.as_bytes())
                 .context("Failed to write password to daemon")?;

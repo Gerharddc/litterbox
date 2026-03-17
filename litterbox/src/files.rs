@@ -9,6 +9,7 @@ fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf> {
     let home_dir = env::home_dir()?;
     let home_path = Path::new(&home_dir);
     let full_path = home_path.join("Litterbox").join(relative_path);
+
     Ok(full_path)
 }
 
@@ -39,7 +40,9 @@ pub fn session_lock_path(lbx_name: &str) -> Result<PathBuf> {
 pub fn daemon_log_file(lbx_name: &str) -> Result<File> {
     let path = path_relative_to_lbx_root(&format!("logs/daemon-{lbx_name}.log"))?;
     let output_dir = path.parent().expect("Path should have parent.");
+
     fs::create_dir_all(output_dir)?;
+
     File::create(&path).context("Could not create daemon log file")
 }
 
@@ -48,6 +51,7 @@ pub fn append_pid_to_session_lockfile(path: &Path, pid: u32) -> Result<()> {
 
     if !pids.contains(&pid) {
         pids.push(pid);
+
         write_pids_to_session_lockfile(path, &pids)?;
     }
 
@@ -69,6 +73,7 @@ pub fn write_pids_to_session_lockfile(path: &Path, pids: &[u32]) -> Result<()> {
         .map(|p| p.to_string())
         .collect::<Vec<_>>()
         .join("\n");
+
     write_file(path, &content)
 }
 

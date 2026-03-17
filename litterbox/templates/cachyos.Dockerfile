@@ -4,22 +4,19 @@ FROM docker.io/cachyos/cachyos-v3:latest
 
 # Setup base system (install essential packages)
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm sudo wayland mesa vulkan-tools vulkan-radeon vulkan-intel openssh git iputils curl iproute2 rsync
+    pacman -S --noconfirm wayland mesa vulkan-tools vulkan-radeon vulkan-intel openssh git iputils curl iproute2 rsync
 
 # Install the fish shell for a nicer experience (ADAPT TO YOUR OWN NEEDS)
 RUN pacman -S --noconfirm fish
 
 # Install development toolchain and additional package managers (ADAPT TO YOUR OWN NEEDS)
-RUN pacman -S --noconfirm base-devel paru mise
+RUN pacman -S --noconfirm gcc
 
-# We put these args later to avoid excessive rebuilding
+# We put this arg later to avoid excessive rebuilding
 ARG USER
-ARG PASSWORD
 
-# Setup non-root user with a password for added security
-RUN useradd -m $USER && \
-    echo "${USER}:${PASSWORD}" | chpasswd && \
-    echo "${USER} ALL=(ALL) ALL" >> /etc/sudoers
+# Setup non-root user for added security
+RUN useradd -m $USER
 WORKDIR /home/$USER
 
 # We do not install things directly into $HOME here as they will get nuked
@@ -46,6 +43,6 @@ EOF
 # Set LANG to enable UTF-8 support
 ENV LANG=en_US.UTF-8
 
-# Enter the fish shell by default
+# Enter the fish shell by default (ADAPT TO YOUR OWN NEEDS)
 ENV SHELL=fish
 RUN chsh -s /usr/bin/fish $USER

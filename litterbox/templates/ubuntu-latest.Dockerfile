@@ -3,22 +3,19 @@ FROM ubuntu:latest
 
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN apt-get update && \
-    apt-get install -y sudo weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools curl iproute2 rsync
+    apt-get install -y weston mesa-vulkan-drivers openssh-client git iputils-ping vulkan-tools curl iproute2 rsync
 
 # Install the fish shell for a nicer experience (ADAPT TO YOUR OWN NEEDS)
 RUN apt-get install -y fish
 
 # Install development tools (ADAPT TO YOUR OWN NEEDS)
-RUN apt-get install -y clang cmake ninja-build g++
+RUN apt-get install -y gcc
 
-# We put these args later to avoid excessive rebuilding
+# We put this arg later to avoid excessive rebuilding
 ARG USER
-ARG PASSWORD
 
-# Setup non-root user with a password for added security
-RUN usermod -l $USER ubuntu -m -d /home/$USER && \
-    echo "${USER}:${PASSWORD}" | chpasswd && \
-    echo "${USER} ALL=(ALL) ALL" >> /etc/sudoers
+# Setup non-root user for added security
+RUN usermod -l $USER ubuntu -m -d /home/$USER
 WORKDIR /home/$USER
 
 # We do not install things directly into $HOME here as they will get nuked
@@ -45,6 +42,6 @@ EOF
 # Set LANG to enable UTF-8 support
 ENV LANG=en_US.UTF-8
 
-# Enter the fish shell by default
+# Enter the fish shell by default (ADAPT TO YOUR OWN NEEDS)
 ENV SHELL=fish
 RUN chsh -s /usr/bin/fish $USER

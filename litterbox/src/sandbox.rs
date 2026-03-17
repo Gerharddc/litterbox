@@ -2,6 +2,15 @@ use anyhow::Result;
 use landlock::{
     ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr, path_beneath_rules,
 };
+use nix::unistd::{Gid, Uid, setgid, setuid};
+use std::{
+    ffi::OsString,
+    os::unix::{fs::symlink, process::CommandExt},
+    path::Path,
+    process::Command,
+};
+
+use crate::{env, files::setup_home};
 
 pub fn apply_landlock() -> Result<()> {
     let access_all = AccessFs::from_all(ABI::V6);
@@ -22,10 +31,14 @@ pub fn apply_landlock() -> Result<()> {
     let ruleset = ruleset.create()?;
     let ruleset = ruleset.add_rules(path_beneath_rules(paths, access_all))?;
     let ruleset = ruleset.add_rules(path_beneath_rules(["/"], AccessFs::ReadDir))?;
+    let ruleset = ruleset.add_rules(path_beneath_rules(
+        ["/litterbox", "/prep-home.sh"],
+        AccessFs::Execute | AccessFs::ReadFile,
+    ))?;
 
     match ruleset.restrict_self() {
         Ok(status) => {
-            println!(
+            eprintln!(
                 "Landlock sandbox applied: {:?}, no_new_privs: {}",
                 status.ruleset, status.no_new_privs
             );
@@ -34,6 +47,53 @@ pub fn apply_landlock() -> Result<()> {
             eprintln!("Failed to apply Landlock sandbox: {:?}", e);
         }
     }
+
+    Ok(())
+}
+
+pub fn entrypoint(root: bool, command: Option<OsString>, args: Vec<OsString>) -> Result<()> {
+    let run0_path = Path::new("/usr/bin/run0");
+    if !run0_path.exists() {
+        symlink("/litterbox", run0_path)?;
+    }
+
+    let sudo_path = Path::new("/usr/bin/sudo");
+    if !sudo_path.exists() {
+        symlink("/litterbox", sudo_path)?;
+    }
+
+    if !root {
+        // TODO: maybe we should not use 1000 as a hard-coded id?
+        setgid(Gid::from_raw(1000))?;
+        setuid(Uid::from_raw(1000))?;
+        eprintln!("Dropped permissions to non-root user");
+    }
+
+    apply_landlock()?;
+    setup_home()?;
+
+    let mut cmd = Command::new(&env::shell()?);
+    cmd.arg("-l");
+
+    if let Some(mut command) = command {
+        // We can't use Command::args for "command" because shells
+        // generally expect a single argument for the "-c" option
+        for arg in args {
+            command.push(" ");
+            command.push(arg);
+        }
+
+        cmd.arg("-c");
+        cmd.arg(command);
+    }
+
+    // On success it never returns
+    let cause = cmd.exec();
+
+    println!(
+        "Failed to execute program '{}': {cause}",
+        cmd.get_program().to_string_lossy()
+    );
 
     Ok(())
 }

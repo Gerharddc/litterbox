@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::env;
-use crate::sandbox;
 
 fn path_relative_to_lbx_root(relative_path: &str) -> Result<PathBuf> {
     let home_dir = env::home_dir()?;
@@ -207,22 +206,22 @@ impl Drop for SshSockFile {
 pub fn setup_home() -> Result<()> {
     let home = env::home_dir()?;
     let marker = format!("{}/.home-built", home);
+    eprintln!("marker: {marker}");
 
     if Path::new(&marker).exists() {
-        println!("Home already built; skipping.");
+        eprintln!("Home already built; skipping.");
     } else {
-        println!("Building home for the first time...");
+        eprintln!("Building home for the first time...");
 
         if Path::new("/prep-home.sh").exists() {
             Command::new("/prep-home.sh")
                 .status()
-                .context("Failed to run /prep-home.sh")?;
+                .context("Running /prep-home.sh")?;
         }
 
-        File::create(&marker)?;
-        println!("Done.");
+        File::create(&marker).context("Building marker")?;
+        eprintln!("Home built!");
     }
 
-    sandbox::apply_landlock()?;
     Ok(())
 }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
@@ -50,8 +50,9 @@ fn extract_stdout(output: &Output) -> Result<&str> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        return Err(anyhow::anyhow!("Podman command failed: {}", stderr));
+        bail!("Podman command failed: {stderr}");
     }
+
     Ok(str::from_utf8(&output.stdout)?)
 }
 
@@ -88,18 +89,15 @@ impl Display for Template {
 
 fn define_litterbox(lbx_name: &str) -> Result<()> {
     let dockerfile = dockerfile_path(lbx_name)?;
+
     if dockerfile.exists() {
-        return Err(anyhow::anyhow!(
-            "Dockerfile already exists at {}",
-            dockerfile.display()
-        ));
+        bail!("Dockerfile already exists at {dockerfile:?}");
     }
 
     let template = Template::select("Choose a template:").prompt()?;
 
     write_file(dockerfile.as_path(), template.contents())?;
-
-    info!("Default Dockerfile written to {}", dockerfile.display());
+    info!("Default Dockerfile written to {dockerfile:?}");
 
     Ok(())
 }
@@ -107,6 +105,7 @@ fn define_litterbox(lbx_name: &str) -> Result<()> {
 fn gen_random_name() -> String {
     let mut generator = names::Generator::with_naming(names::Name::Numbered);
     let name = generator.next().expect("Name should not be none.");
+
     format!("lbx-{name}")
 }
 

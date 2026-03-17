@@ -6,6 +6,7 @@ use serde::Deserialize;
 use std::{
     ffi::OsString,
     fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
@@ -200,14 +201,14 @@ pub fn build_image(lbx_name: &str) -> Result<()> {
                 warn!("Image for Litterbox had more than one name. The first one will be used.");
             }
 
-            println!("An image for this Litterbox already exists.");
+            eprintln!("An image for this Litterbox already exists.");
             if Confirm::new("Would you like to rebuild the image?")
                 .with_default(true)
                 .prompt()?
             {
-                println!("The image will now be rebuilt!");
+                eprintln!("The image will now be rebuilt!");
             } else {
-                println!("The existing image will be re-used!");
+                eprintln!("The existing image will be re-used!");
 
                 // Exit the whole function since we don't need to do anything more
                 return Ok(());
@@ -219,7 +220,7 @@ pub fn build_image(lbx_name: &str) -> Result<()> {
 
     let dockerfile_path = files::dockerfile_path(lbx_name)?;
     if !dockerfile_path.exists() {
-        println!(
+        eprintln!(
             "{} does not exist. Please make one or a use a provided template.",
             dockerfile_path.display()
         );
@@ -474,7 +475,7 @@ pub fn enter_litterbox(
     files::append_pid_to_session_lockfile(&session_lock, my_pid)?;
 
     if !is_container_running(lbx_name)? {
-        println!("Container not running yet, starting now...");
+        eprintln!("Container not running yet, starting now...");
 
         let start_child = Command::new("podman")
             .args(["start", &container_id])
@@ -483,7 +484,7 @@ pub fn enter_litterbox(
 
         wait_for_podman(start_child)?;
     } else {
-        println!("Container already running, just attaching...")
+        eprintln!("Container already running, just attaching...")
     }
 
     tokio::runtime::Runtime::new()
@@ -537,7 +538,7 @@ pub fn enter_litterbox(
 
             let mut exec_child = exec_child.spawn().context("Failed to run podman command")?;
 
-            println!("Waiting for podman");
+            eprintln!("Waiting for podman");
             tokio::select! {
                 _ = wait_for_podman_async(&mut exec_child) => {}
                 _ = tokio::signal::ctrl_c() => {
@@ -565,12 +566,9 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
         )
         .prompt();
 
-    match should_delete {
-        Ok(true) => {}
-        _ => {
-            println!("Okay, the Litterbox won't be deleted!");
-            return Ok(());
-        }
+    if !should_delete.is_ok_and(|x| x) {
+        eprintln!("Okay, the Litterbox won't be deleted!");
+        return Ok(());
     }
 
     let child = Command::new("podman")
@@ -596,7 +594,7 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
         let should_delete_home =
             Confirm::new("Do you want to delete the home directory for this Litterbox?")
                 .with_default(false)
-                .with_help_message(&format!("This will delete {}", home_path.display()))
+                .with_help_message(&format!("This will delete {home_path:?}"))
                 .prompt();
 
         match should_delete_home {
@@ -605,7 +603,7 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
                 info!("Home directory deleted!");
             }
             _ => {
-                println!("Skipping home directory deletion.");
+                eprintln!("Skipping home directory deletion.");
             }
         }
     }
@@ -619,21 +617,24 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
                 .with_help_message("This will delete the Dockerfile and settings file")
                 .prompt();
 
-        match should_delete_definition {
-            Ok(true) => {
-                if dockerfile_path.exists() {
-                    fs::remove_file(&dockerfile_path)?;
-                    info!("Dockerfile deleted!")
-                }
+        if let Ok(true) = should_delete_definition {
+            fs::remove_file(&dockerfile_path)
+                .inspect(|_| info!("Dockerfile deleted!"))
+                .or_else(|cause| {
+                    (cause.kind() == ErrorKind::NotFound)
+                        .then_some(())
+                        .ok_or(cause)
+                })?;
 
-                if settings_path.exists() {
-                    fs::remove_file(&settings_path)?;
-                    info!("Settings file deleted!")
-                }
-            }
-            _ => {
-                println!("Skipping definition file deletion.");
-            }
+            fs::remove_file(&settings_path)
+                .inspect(|_| info!("Settings file deleted!"))
+                .or_else(|cause| {
+                    (cause.kind() == ErrorKind::NotFound)
+                        .then_some(())
+                        .ok_or(cause)
+                })?;
+        } else {
+            eprintln!("Skipping definition file deletion.");
         }
     }
 

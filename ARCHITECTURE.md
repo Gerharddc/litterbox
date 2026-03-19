@@ -93,5 +93,5 @@ When a user runs `litterbox enter NAME`:
 1. **Container Check** - Verify container exists; start if not running
 2. **Daemon Start** - If daemon not running, spawn it with the key password via stdin
 3. **Session Registration** - Add terminal PID to session lockfile
-4. **Home Setup** - Run `/litterbox setup-home` to initialize user's home directory (only on first entry)
+4. **Entrypoint** - Run `/litterbox entrypoint` to initialize user's home directory (only on first entry) and then enter the default shell
 5. **Shell Launch** - Start user's shell inside the container

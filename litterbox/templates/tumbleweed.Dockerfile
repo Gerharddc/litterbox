@@ -3,22 +3,20 @@ FROM registry.opensuse.org/opensuse/tumbleweed:latest
 
 # Setup base system (we install weston to easily get all the Wayland deps)
 RUN zypper refresh && \
-    zypper in -y sudo weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools curl iproute2 rsync
+    zypper in -y weston libvulkan_radeon libvulkan_intel openssh git iputils vulkan-tools curl iproute2 rsync
 
 # Install the fish shell for a nicer experience (ADAPT TO YOUR OWN NEEDS)
 RUN zypper in -y fish
 
 # Install development toolchain (ADAPT TO YOUR OWN NEEDS)
-RUN zypper in -y clang cmake ninja gcc-c++
+RUN zypper in -y gcc
 
-# We put these args later to avoid excessive rebuilding
+# Setup non-root user for added security
+# (NB Litterbox assumes you do this step)
 ARG USER
-ARG PASSWORD
-
-# Setup non-root user with a password for added security
-RUN useradd -m $USER && \
-    echo "${USER}:${PASSWORD}" | chpasswd && \
-    echo "${USER} ALL=(ALL) ALL" >> /etc/sudoers
+ARG UID
+ARG GID
+RUN useradd -m $USER -u $UID -g $GID
 WORKDIR /home/$USER
 
 # We do not install things directly into $HOME here as they will get nuked
@@ -45,6 +43,6 @@ EOF
 # Set LANG to enable UTF-8 support
 ENV LANG=en_US.UTF-8
 
-# Enter the fish shell by default
+# Enter the fish shell by default (ADAPT TO YOUR OWN NEEDS)
 ENV SHELL=fish
 RUN chsh -s /usr/bin/fish $USER

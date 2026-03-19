@@ -208,18 +208,18 @@ pub fn setup_home() -> Result<()> {
     let marker = format!("{}/.home-built", home);
 
     if Path::new(&marker).exists() {
-        println!("Home already built; skipping.");
+        eprintln!("Home already built; skipping.");
     } else {
-        println!("Building home for the first time...");
+        eprintln!("Building home for the first time...");
 
         if Path::new("/prep-home.sh").exists() {
             Command::new("/prep-home.sh")
                 .status()
-                .context("Failed to run /prep-home.sh")?;
+                .context("Running /prep-home.sh")?;
         }
 
-        File::create(&marker)?;
-        println!("Done.");
+        File::create(&marker).context("Building marker")?;
+        eprintln!("Home built!");
     }
 
     Ok(())

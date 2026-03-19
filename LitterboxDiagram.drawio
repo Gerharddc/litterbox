@@ -47,7 +47,7 @@
             <mxPoint y="19" as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="3NI2oor_4DyrBC_jmbMr-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="SetupHome 1" vertex="1">
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Entrypoint 1" vertex="1">
           <mxGeometry height="60" width="120" x="610" y="550" as="geometry" />
         </mxCell>
         <mxCell id="3NI2oor_4DyrBC_jmbMr-8" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="DUsu039GC-w56qL2mdB9-3" value="">
@@ -98,7 +98,7 @@
         <mxCell id="3NI2oor_4DyrBC_jmbMr-20" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;fontSize=20;" value="..." vertex="1">
           <mxGeometry height="30" width="60" x="640" y="630" as="geometry" />
         </mxCell>
-        <mxCell id="3NI2oor_4DyrBC_jmbMr-21" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="SetupHome N" vertex="1">
+        <mxCell id="3NI2oor_4DyrBC_jmbMr-21" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Entrypoint N" vertex="1">
           <mxGeometry height="60" width="120" x="610" y="680" as="geometry" />
         </mxCell>
         <mxCell id="3NI2oor_4DyrBC_jmbMr-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Shell etc." vertex="1">

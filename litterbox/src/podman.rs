@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow, ensure};
-use inquire::{Confirm, Password};
+use inquire::Confirm;
 use log::{debug, info, warn};
+use nix::unistd::{getgid, getuid};
 use serde::Deserialize;
 use std::{
     ffi::OsString,
@@ -16,6 +17,8 @@ use crate::{
     keys::Keys,
     settings::LitterboxSettings,
 };
+
+const LBX_USER: &str = "user";
 
 /// Represents the GPU device configuration for the container
 enum GpuDevice {
@@ -189,7 +192,7 @@ async fn wait_for_podman_async(child: &mut tokio::process::Child) -> Result<()> 
     Ok(())
 }
 
-pub fn build_image(lbx_name: &str, user: &str) -> Result<()> {
+pub fn build_image(lbx_name: &str) -> Result<()> {
     let image_name = match get_image_details(lbx_name)? {
         Some(details) => {
             assert!(!details.names.is_empty(), "All images should have a name.");
@@ -223,18 +226,15 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<()> {
         define_litterbox(lbx_name)?;
     }
 
-    println!("Please pick a password for the user inside the Litterbox.");
-    let password = Password::new("User password:")
-        .with_display_mode(inquire::PasswordDisplayMode::Masked)
-        .prompt()?;
-
     let child = Command::new("podman")
         .args([
             "build",
             "--build-arg",
-            &format!("USER={}", user),
+            &format!("USER={}", LBX_USER),
             "--build-arg",
-            &format!("PASSWORD={}", password),
+            &format!("UID={}", getuid().as_raw()),
+            "--build-arg",
+            &format!("GID={}", getgid().as_raw()),
             "-t",
             &image_name,
             "--label",
@@ -250,7 +250,7 @@ pub fn build_image(lbx_name: &str, user: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
+pub fn build_litterbox(lbx_name: &str) -> Result<()> {
     let image_details = get_image_details(lbx_name)?.ok_or_else(|| {
         anyhow!(
             "No image found for {}. Run `litterbox build` first.",
@@ -309,7 +309,7 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
     let wayland_socket_mount =
         format!("{xdg_runtime_dir}/{wayland_display}:/tmp/{wayland_display}");
     let home_mount = format!(
-        "{}:/home/{user}",
+        "{}:/home/{LBX_USER}",
         litterbox_home.to_str().expect("Invalid litterbox_home.")
     );
     let label = format!("work.litterbox.name={lbx_name}");
@@ -330,6 +330,7 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
     fs::File::create(&session_lock_path)?;
 
     let session_lock_mount = format!("{session_lock_path_str}:/session.lock:ro");
+    let home_dir = format!("HOME=/home/{LBX_USER}");
 
     let mut full_args = vec![
         "create",
@@ -348,6 +349,8 @@ pub fn build_litterbox(lbx_name: &str, user: &str) -> Result<()> {
         &session_lock_mount,
         "--entrypoint",
         "[\"/litterbox\", \"wait\"]",
+        "-e",
+        &home_dir,
         "-e",
         "SSH_AUTH_SOCK=/tmp/ssh-agent.sock",
         "-v",
@@ -442,6 +445,7 @@ pub fn enter_litterbox(
     workdir: Option<PathBuf>,
     command: Option<OsString>,
     command_args: Vec<OsString>,
+    root: bool,
 ) -> Result<()> {
     let container = get_container_details(lbx_name)?
         .ok_or_else(|| anyhow!("No container found for {}", lbx_name))?;
@@ -518,9 +522,27 @@ pub fn enter_litterbox(
                 exec_child.arg(workdir.into_os_string());
             }
 
-            exec_child.args([&container_id, "/litterbox", "setup-home"]);
+            // We always start as root but then drop down later if needed
+            exec_child.arg("--user");
+            exec_child.arg("root");
+
+            exec_child.args([
+                &container_id,
+                "/litterbox",
+                "entrypoint",
+                "--uid",
+                &getuid().to_string(),
+                "--gid",
+                &getgid().to_string(),
+            ]);
+
+            // The entrypoint is responsible for dropping root if needed
+            if root {
+                exec_child.arg("--root");
+            }
 
             if let Some(command) = command {
+                exec_child.arg("--");
                 exec_child.arg(command);
                 exec_child.args(command_args);
             }

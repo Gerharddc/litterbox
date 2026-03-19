@@ -2,13 +2,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
-use std::{
-    ffi::OsString,
-    fmt::Display,
-    os::unix::prelude::CommandExt,
-    path::PathBuf,
-    process::{Command, Output},
-};
+use nix::libc::{gid_t, uid_t};
+use std::{ffi::OsString, fmt::Display, path::PathBuf, process::Output};
 use tabled::{Table, Tabled};
 
 mod agent;
@@ -18,6 +13,7 @@ mod env;
 mod files;
 mod keys;
 mod podman;
+mod sandbox;
 mod settings;
 
 use crate::{
@@ -26,6 +22,7 @@ use crate::{
     files::{dockerfile_path, wait_for_sessions_to_finish, write_file},
     keys::Keys,
     podman::*,
+    sandbox::entrypoint,
 };
 
 #[derive(Tabled)]
@@ -132,10 +129,6 @@ enum Commands {
     Build {
         /// The name of the Litterbox to build
         name: String,
-
-        /// The username of the user in the Litterbox (defaults to "user")
-        #[arg(short, long)]
-        user: Option<String>,
     },
 
     /// List all the Litterboxes that have been created
@@ -159,6 +152,10 @@ enum Commands {
         /// Working directory inside the container
         #[arg(long, short)]
         workdir: Option<PathBuf>,
+
+        /// Run as root inside the container
+        #[arg(long, default_value_t = false)]
+        root: bool,
 
         /// The command to execute instead of the login shell
         command: Option<OsString>,
@@ -212,10 +209,22 @@ enum Commands {
     #[clap(hide = true)]
     Wait,
 
-    /// Setup home directory (for internal use)
+    /// Container entrypoint (for internal use)
     // -h and -V might conflict with a command's arguments
     #[clap(hide = true, disable_help_flag = true, disable_version_flag = true)]
-    SetupHome {
+    Entrypoint {
+        /// Run as root instead of dropping privileges
+        #[arg(long, default_value_t = false)]
+        root: bool,
+
+        /// The UID to drop to if dropping privileges
+        #[arg(long)]
+        uid: uid_t,
+
+        /// The GID to drop to if dropping privileges
+        #[arg(long)]
+        gid: gid_t,
+
         /// The command to execute instead of the login shell
         command: Option<OsString>,
 
@@ -232,10 +241,9 @@ fn run_menu() -> Result<()> {
             define_litterbox(&name)?;
             println!("Litterbox defined!");
         }
-        Commands::Build { name, user } => {
-            let user = user.unwrap_or("user".to_string());
-            build_image(&name, &user)?;
-            build_litterbox(&name, &user)?;
+        Commands::Build { name } => {
+            build_image(&name)?;
+            build_litterbox(&name)?;
             println!("Litterbox built!");
         }
         Commands::Enter {
@@ -245,8 +253,9 @@ fn run_menu() -> Result<()> {
             workdir,
             command,
             args,
+            root,
         } => {
-            enter_litterbox(&name, interactive, tty, workdir, command, args)?;
+            enter_litterbox(&name, interactive, tty, workdir, command, args, root)?;
             println!("Exited Litterbox...")
         }
         Commands::List => {
@@ -281,31 +290,14 @@ fn run_menu() -> Result<()> {
         Commands::Wait => {
             wait_for_sessions_to_finish()?;
         }
-        Commands::SetupHome { command, args } => {
-            files::setup_home()?;
-
-            let mut cmd = Command::new(&env::shell()?);
-            cmd.arg("-l");
-
-            if let Some(mut command) = command {
-                // We can't use Command::args for "command" because shells
-                // generally expect a single argument for the "-c" option
-                for arg in args {
-                    command.push(" ");
-                    command.push(arg);
-                }
-
-                cmd.arg("-c");
-                cmd.arg(command);
-            }
-
-            // On success it never returns
-            let cause = cmd.exec();
-
-            println!(
-                "Failed to execute program '{}': {cause}",
-                cmd.get_program().to_string_lossy()
-            );
+        Commands::Entrypoint {
+            root,
+            uid,
+            gid,
+            command,
+            args,
+        } => {
+            entrypoint(root, uid, gid, command, args)?;
         }
     }
     Ok(())
@@ -401,10 +393,16 @@ fn process_key_cmd(cmd: KeyCommands) -> Result<()> {
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::init();
 
-    if let Err(e) = run_menu() {
-        eprintln!("Error: {:#}", e);
+    let argv_0 = std::env::args().next();
+    if matches!(argv_0.as_deref(), Some("run0" | "sudo")) {
+        eprintln!(
+            "run0/sudo is not supported inside this session. Use 'litterbox enter --root <name>' to enter as root."
+        );
+        return Ok(());
     }
+
+    run_menu()
 }

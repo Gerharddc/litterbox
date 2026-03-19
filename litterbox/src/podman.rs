@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow, ensure};
 use inquire::Confirm;
 use log::{debug, info, warn};
+use nix::unistd::{getgid, getuid};
 use serde::Deserialize;
 use std::{
     ffi::OsString,
@@ -230,6 +231,10 @@ pub fn build_image(lbx_name: &str) -> Result<()> {
             "build",
             "--build-arg",
             &format!("USER={}", LBX_USER),
+            "--build-arg",
+            &format!("UID={}", getuid().as_raw()),
+            "--build-arg",
+            &format!("GID={}", getgid().as_raw()),
             "-t",
             &image_name,
             "--label",
@@ -521,7 +526,15 @@ pub fn enter_litterbox(
             exec_child.arg("--user");
             exec_child.arg("root");
 
-            exec_child.args([&container_id, "/litterbox", "entrypoint"]);
+            exec_child.args([
+                &container_id,
+                "/litterbox",
+                "entrypoint",
+                "--uid",
+                &getuid().to_string(),
+                "--gid",
+                &getgid().to_string(),
+            ]);
 
             // The entrypoint is responsible for dropping root if needed
             if root {
@@ -529,6 +542,7 @@ pub fn enter_litterbox(
             }
 
             if let Some(command) = command {
+                exec_child.arg("--");
                 exec_child.arg(command);
                 exec_child.args(command_args);
             }

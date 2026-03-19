@@ -11,11 +11,12 @@ RUN apt-get install -y fish
 # Install development tools (ADAPT TO YOUR OWN NEEDS)
 RUN apt-get install -y gcc
 
-# We put this arg later to avoid excessive rebuilding
-ARG USER
-
 # Setup non-root user for added security
-RUN usermod -l $USER ubuntu -m -d /home/$USER
+# (NB Litterbox assumes you do this step)
+ARG USER
+ARG UID
+ARG GID
+RUN usermod -l $USER ubuntu -u $UID -g $GID -m -d /home/$USER
 WORKDIR /home/$USER
 
 # We do not install things directly into $HOME here as they will get nuked

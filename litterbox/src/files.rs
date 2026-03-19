@@ -206,7 +206,6 @@ impl Drop for SshSockFile {
 pub fn setup_home() -> Result<()> {
     let home = env::home_dir()?;
     let marker = format!("{}/.home-built", home);
-    eprintln!("marker: {marker}");
 
     if Path::new(&marker).exists() {
         eprintln!("Home already built; skipping.");

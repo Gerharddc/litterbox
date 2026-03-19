@@ -12,11 +12,12 @@ RUN pacman -S --noconfirm fish
 # Install development toolchain and additional package managers (ADAPT TO YOUR OWN NEEDS)
 RUN pacman -S --noconfirm gcc
 
-# We put this arg later to avoid excessive rebuilding
-ARG USER
-
 # Setup non-root user for added security
-RUN useradd -m $USER
+# (NB Litterbox assumes you do this step)
+ARG USER
+ARG UID
+ARG GID
+RUN useradd -m $USER -u $UID -g $GID
 WORKDIR /home/$USER
 
 # We do not install things directly into $HOME here as they will get nuked

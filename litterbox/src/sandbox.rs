@@ -2,7 +2,10 @@ use anyhow::Result;
 use landlock::{
     ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr, path_beneath_rules,
 };
-use nix::unistd::{Gid, Uid, setgid, setuid};
+use nix::{
+    libc::{gid_t, uid_t},
+    unistd::{Gid, Uid, setgid, setuid},
+};
 use std::{
     ffi::OsString,
     os::unix::{fs::symlink, process::CommandExt},
@@ -51,7 +54,13 @@ pub fn apply_landlock() -> Result<()> {
     Ok(())
 }
 
-pub fn entrypoint(root: bool, command: Option<OsString>, args: Vec<OsString>) -> Result<()> {
+pub fn entrypoint(
+    root: bool,
+    uid: uid_t,
+    gid: gid_t,
+    command: Option<OsString>,
+    args: Vec<OsString>,
+) -> Result<()> {
     let run0_path = Path::new("/usr/bin/run0");
     if !run0_path.exists() {
         symlink("/litterbox", run0_path)?;
@@ -63,9 +72,8 @@ pub fn entrypoint(root: bool, command: Option<OsString>, args: Vec<OsString>) ->
     }
 
     if !root {
-        // TODO: maybe we should not use 1000 as a hard-coded id?
-        setgid(Gid::from_raw(1000))?;
-        setuid(Uid::from_raw(1000))?;
+        setgid(Gid::from_raw(uid))?;
+        setuid(Uid::from_raw(gid))?;
         eprintln!("Dropped permissions to non-root user");
     }
 

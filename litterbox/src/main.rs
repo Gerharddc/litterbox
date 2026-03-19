@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
+use nix::libc::{gid_t, uid_t};
 use std::{ffi::OsString, fmt::Display, path::PathBuf, process::Output};
 use tabled::{Table, Tabled};
 
@@ -216,6 +217,14 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         root: bool,
 
+        /// The UID to drop to if dropping privileges
+        #[arg(long)]
+        uid: uid_t,
+
+        /// The GID to drop to if dropping privileges
+        #[arg(long)]
+        gid: gid_t,
+
         /// The command to execute instead of the login shell
         command: Option<OsString>,
 
@@ -283,10 +292,12 @@ fn run_menu() -> Result<()> {
         }
         Commands::Entrypoint {
             root,
+            uid,
+            gid,
             command,
             args,
         } => {
-            entrypoint(root, command, args)?;
+            entrypoint(root, uid, gid, command, args)?;
         }
     }
     Ok(())
@@ -386,9 +397,7 @@ fn main() -> Result<()> {
     env_logger::init();
 
     let argv_0 = std::env::args().next();
-    if let Some(argv_0) = argv_0
-        && ((argv_0 == "run0") || (argv_0 == "sudo"))
-    {
+    if matches!(argv_0.as_deref(), Some("run0" | "sudo")) {
         eprintln!(
             "run0/sudo is not supported inside this session. Use 'litterbox enter --root <name>' to enter as root."
         );

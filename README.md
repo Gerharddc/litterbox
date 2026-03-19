@@ -49,7 +49,7 @@ gerhard@big-desktop:~$ ldd $(which litterbox)
 
 It also depends on `podman` being installed on your system and the `mknod` command being available.
 
-Hence, almost any modern Linux distro on which you can install `podman` should work. In the future, the goal is to also take advantage of `Landlock` for added security on systems where it is available (i.e. most modern distros).
+Hence, almost any modern Linux distro on which you can install `podman` should work. Litterbox also takes advantage of `Landlock` for added security on systems where it is available (i.e. most modern distros).
 
 ## Installation
 
@@ -124,10 +124,10 @@ Litterbox is still very much WIP with many missing features or required improvem
 - [x] Add optional support for using host network.
 - [x] Add optional support for port forwarding with the default "pasta" networking.
 - [x] Support entering a Litterbox multiple times.
+- [x] Use `Landlock` to improve isolation strength.
 - [ ] Add a "prune" command to get rid of dangling images.
 - [ ] Add support for more granular network settings.
 - [ ] Show SSH key name when prompting for approval. (Currently blocked by https://github.com/Eugeny/russh/issues/602)
-- [ ] Use `Landlock` to improve isolation strength.
 - [ ] Expose limited DBus access to allow applications to open URLs. Likely using [dbus-proxy](https://github.com/Pelagicore/dbus-proxy).
 - [ ] Make it possible for Xorg apps to run via Wayback integration.
 - [ ] Add full support for running on Windows via WSL.

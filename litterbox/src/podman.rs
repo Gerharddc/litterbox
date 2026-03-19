@@ -342,7 +342,7 @@ pub fn build_litterbox(lbx_name: &str) -> Result<()> {
         &hostname,
         "--network",
         settings.network_mode.podman_args(),
-        "--security-opt=label=disable", // TODO: use Landlock for better isolation
+        "--security-opt=label=disable",
         "-v",
         &litterbox_mount,
         "-v",

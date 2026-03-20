@@ -3,8 +3,8 @@ use clap::Args;
 use log::info;
 
 use crate::{
-    Template,
     files::{dockerfile_path, write_file},
+    template::Template,
 };
 
 /// Define a new Litterbox using a template Dockerfile

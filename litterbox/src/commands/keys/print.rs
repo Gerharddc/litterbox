@@ -2,6 +2,7 @@ use crate::keys::Keys;
 use anyhow::Result;
 use clap::Args;
 
+/// Print the key in OpenSSH public key format
 #[derive(Args, Debug)]
 pub struct Command {
     /// The name of the key

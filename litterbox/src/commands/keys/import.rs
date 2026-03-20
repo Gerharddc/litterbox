@@ -3,6 +3,7 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 
+/// Import a key to Litterbox
 #[derive(Args, Debug)]
 pub struct Command {
     /// The name of the new key

@@ -14,46 +14,35 @@ pub mod wait;
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Define a new Litterbox using a template Dockerfile
+    Build(#[clap(flatten)] build::Command),
+
     #[clap(visible_alias("def"))]
     Define(#[clap(flatten)] define::Command),
 
-    /// Build a new Litterbox
-    Build(#[clap(flatten)] build::Command),
-
-    /// List all the Litterboxes that have been created
-    #[clap(visible_alias("ls"))]
-    List(#[clap(flatten)] list::Command),
-
-    /// Enter an existing Litterbox
-    Enter(#[clap(flatten)] enter::Command),
-
-    /// Delete an existing Litterbox
     #[clap(visible_alias("del"), visible_alias("rm"))]
     Delete(#[clap(flatten)] delete::Command),
 
-    /// Manage SSH keys that can be exposed to Litterboxes
-    #[command(subcommand)]
-    Keys(keys::Command),
-
-    /// Attach a device to a Litterbox (the device fille be created in the home directory)
     #[clap(visible_alias("dev"))]
     Device(#[clap(flatten)] device::Command),
 
-    /// Ask the user to confirm a request (for internal use)
+    Enter(#[clap(flatten)] enter::Command),
+
+    #[clap(visible_alias("ls"))]
+    List(#[clap(flatten)] list::Command),
+
+    #[command(subcommand)]
+    Keys(keys::Command),
+
     #[clap(hide = true)]
     Confirm(#[clap(flatten)] confirm::Command),
 
-    /// Run daemon (for internal use)
     #[clap(hide = true)]
     Daemon(#[clap(flatten)] daemon::Command),
 
-    /// Wait for the Litterbox to finish (for internal use)
     #[clap(hide = true)]
     Wait(#[clap(flatten)] wait::Command),
 
-    /// Container entrypoint (for internal use)
-    // -h and -V might conflict with a command's arguments
+    // -h and -V conflict with a command's arguments
     #[clap(hide = true, disable_help_flag = true, disable_version_flag = true)]
     Entrypoint(#[clap(flatten)] entrypoint::Command),
 }

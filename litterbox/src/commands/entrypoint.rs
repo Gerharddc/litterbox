@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::Args;
 use nix::unistd::{Gid, Uid};
 
+/// Container entrypoint (for internal use)
 #[derive(Args, Debug)]
 pub struct Command {
     /// Run as root instead of dropping privileges

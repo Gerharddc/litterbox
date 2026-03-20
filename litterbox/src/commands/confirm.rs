@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 
+/// Ask the user to confirm a request (for internal use)
 #[derive(Args, Debug)]
 pub struct Command {
     // The request that the user needs to confirm

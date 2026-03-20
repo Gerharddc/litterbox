@@ -2,6 +2,7 @@ use crate::keys::Keys;
 use anyhow::Result;
 use clap::Args;
 
+/// Detach an attached Litterbox from a key
 #[derive(Args, Debug)]
 pub struct Command {
     /// The name of the key

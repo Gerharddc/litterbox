@@ -3,6 +3,7 @@ use std::{ffi::OsString, path::PathBuf};
 use anyhow::Result;
 use clap::Args;
 
+/// Enter an existing Litterbox
 #[derive(Args, Debug)]
 pub struct Command {
     /// The name of the Litterbox to enter

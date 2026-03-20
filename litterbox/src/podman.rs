@@ -59,13 +59,13 @@ impl GpuDevice {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct LitterboxLabels {
+pub struct ContainerLabels {
     #[serde(rename = "work.litterbox.name")]
     pub name: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct ContainerDetails {
+pub struct Container {
     #[serde(rename = "Id")]
     pub id: String,
 
@@ -79,14 +79,14 @@ pub struct ContainerDetails {
     pub names: Vec<String>,
 
     #[serde(rename = "Labels")]
-    pub labels: LitterboxLabels,
+    pub labels: ContainerLabels,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct AllContainers(pub Vec<ContainerDetails>);
+pub struct Containers(pub Vec<Container>);
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct ImageDetails {
+pub struct Image {
     #[serde(rename = "Id")]
     pub id: String,
 
@@ -95,9 +95,9 @@ pub struct ImageDetails {
 }
 
 #[derive(Deserialize, Debug)]
-struct AllImages(Vec<ImageDetails>);
+struct Images(Vec<Image>);
 
-pub fn list_containers() -> Result<AllContainers> {
+pub fn get_containers() -> Result<Containers> {
     let output = Command::new("podman")
         .args([
             "ps",
@@ -108,13 +108,13 @@ pub fn list_containers() -> Result<AllContainers> {
             "label=work.litterbox.name",
         ])
         .output()
-        .context("Failed to run 'podman ps' command")?;
+        .context("Failed to run 'podman' command")?;
 
     let stdout = extract_stdout(&output)?;
     Ok(serde_json::from_str(stdout)?)
 }
 
-pub fn get_container_details(lbx_name: &str) -> Result<Option<ContainerDetails>> {
+pub fn get_containers_by_name(lbx_name: &str) -> Result<Containers> {
     let output = Command::new("podman")
         .args([
             "ps",
@@ -127,8 +127,11 @@ pub fn get_container_details(lbx_name: &str) -> Result<Option<ContainerDetails>>
         .output()
         .context("Failed to run podman command")?;
 
-    let stdout = extract_stdout(&output)?;
-    let AllContainers(mut containers) = serde_json::from_str(stdout)?;
+    Ok(serde_json::from_str(extract_stdout(&output)?)?)
+}
+
+pub fn get_container(lbx_name: &str) -> Result<Option<Container>> {
+    let mut containers = get_containers_by_name(lbx_name)?.0;
 
     match containers.len() {
         0 => Ok(None),
@@ -137,7 +140,11 @@ pub fn get_container_details(lbx_name: &str) -> Result<Option<ContainerDetails>>
     }
 }
 
-pub fn get_image_details(lbx_name: &str) -> Result<Option<ImageDetails>> {
+pub fn is_container_running(lbx_name: &str) -> Result<bool> {
+    Ok(!get_containers_by_name(lbx_name)?.0.is_empty())
+}
+
+pub fn get_image(lbx_name: &str) -> Result<Option<Image>> {
     let output = Command::new("podman")
         .args([
             "image",
@@ -147,14 +154,16 @@ pub fn get_image_details(lbx_name: &str) -> Result<Option<ImageDetails>> {
             "json",
             "--filter",
             &format!("label=work.litterbox.name={lbx_name}"),
-            "--filter", // We need to avoid dangling images that are left behind when an image gets rebuilt
+            "--filter",
+            // Avoid dangling images that are left behind when an image gets
+            // rebuilt.
             "dangling=false",
         ])
         .output()
         .context("Failed to run podman command")?;
 
     let stdout = extract_stdout(&output)?;
-    let AllImages(mut images) = serde_json::from_str(stdout)?;
+    let Images(mut images) = serde_json::from_str(stdout)?;
 
     match images.len() {
         0 => Ok(None),
@@ -163,41 +172,8 @@ pub fn get_image_details(lbx_name: &str) -> Result<Option<ImageDetails>> {
     }
 }
 
-pub fn is_container_running(lbx_name: &str) -> Result<bool> {
-    // We can't use get_container_details() here because multiple containers
-    // might be running.
-
-    let output = Command::new("podman")
-        .args([
-            "ps",
-            "--format",
-            "json",
-            "--filter",
-            &format!("label=work.litterbox.name={lbx_name}"),
-        ])
-        .output()
-        .context("Failed to run podman command")?;
-
-    let stdout = extract_stdout(&output)?;
-    let containers: AllContainers = serde_json::from_str(stdout)?;
-
-    Ok(!containers.0.is_empty())
-}
-
-fn wait_for_podman(mut child: Child) -> Result<()> {
-    let res = child.wait().context("Failed to run podman command")?;
-    ensure!(res.success(), "Podman command failed");
-    Ok(())
-}
-
-async fn wait_for_podman_async(child: &mut tokio::process::Child) -> Result<()> {
-    let res = child.wait().await.context("Failed to run podman command")?;
-    ensure!(res.success(), "Podman command failed");
-    Ok(())
-}
-
 pub fn build_image(lbx_name: &str) -> Result<()> {
-    let image_name = match get_image_details(lbx_name)? {
+    let image_name = match get_image(lbx_name)? {
         Some(details) => {
             assert!(!details.names.is_empty(), "All images should have a name.");
             if details.names.len() > 1 {
@@ -255,10 +231,10 @@ pub fn build_image(lbx_name: &str) -> Result<()> {
 }
 
 pub fn build_litterbox(lbx_name: &str) -> Result<()> {
-    let image_details = get_image_details(lbx_name)?
+    let image_details = get_image(lbx_name)?
         .ok_or_else(|| anyhow!("No image found for '{lbx_name}'. Run `litterbox build` first."))?;
     let image_id = image_details.id;
-    let container_name = match get_container_details(lbx_name)? {
+    let container_name = match get_container(lbx_name)? {
         Some(mut details) => {
             assert!(
                 !details.names.is_empty(),
@@ -456,8 +432,8 @@ pub fn enter_litterbox(
     command_args: Vec<OsString>,
     root: bool,
 ) -> Result<()> {
-    let container = get_container_details(lbx_name)?
-        .ok_or_else(|| anyhow!("No container found for '{lbx_name}'"))?;
+    let container =
+        get_container(lbx_name)?.ok_or_else(|| anyhow!("No container found for '{lbx_name}'"))?;
     let container_id = container.id;
 
     if !daemon::is_running(lbx_name)? {
@@ -575,8 +551,8 @@ pub fn enter_litterbox(
 }
 
 pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
-    let container = get_container_details(lbx_name)?
-        .ok_or_else(|| anyhow!("No container found for {}", lbx_name))?;
+    let container =
+        get_container(lbx_name)?.ok_or_else(|| anyhow!("No container found for {}", lbx_name))?;
     let container_id = container.id;
 
     let should_delete = Confirm::new("Are you sure you want to delete this Litterbox?")
@@ -600,7 +576,7 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
     info!("Container for Litterbox deleted!");
 
     let image_details =
-        get_image_details(lbx_name)?.ok_or_else(|| anyhow!("No image found for {}", lbx_name))?;
+        get_image(lbx_name)?.ok_or_else(|| anyhow!("No image found for {}", lbx_name))?;
     let child = Command::new("podman")
         .args(["image", "rm", &image_details.id])
         .spawn()
@@ -658,5 +634,17 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn wait_for_podman(mut child: Child) -> Result<()> {
+    let res = child.wait().context("Failed to run podman command")?;
+    ensure!(res.success(), "Podman command failed");
+    Ok(())
+}
+
+async fn wait_for_podman_async(child: &mut tokio::process::Child) -> Result<()> {
+    let res = child.wait().await.context("Failed to run podman command")?;
+    ensure!(res.success(), "Podman command failed");
     Ok(())
 }

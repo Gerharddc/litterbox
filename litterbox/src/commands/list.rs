@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Args;
 use tabled::{Table, Tabled};
 
-use crate::podman::{ContainerDetails, list_containers};
+use crate::podman::{Container, get_containers};
 
 #[derive(Tabled)]
 struct ContainerTableRow {
@@ -13,8 +13,8 @@ struct ContainerTableRow {
     image_id: String,
 }
 
-impl From<&ContainerDetails> for ContainerTableRow {
-    fn from(value: &ContainerDetails) -> Self {
+impl From<&Container> for ContainerTableRow {
+    fn from(value: &Container) -> Self {
         Self {
             name: value.labels.name.clone(),
             container_id: value.id.chars().take(12).collect(),
@@ -31,7 +31,7 @@ pub struct Command {}
 
 impl Command {
     pub fn run(self) -> Result<()> {
-        let containers = list_containers()?;
+        let containers = get_containers()?;
         let table_rows: Vec<ContainerTableRow> = containers.0.iter().map(|c| c.into()).collect();
         let table = Table::new(table_rows);
 

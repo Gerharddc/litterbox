@@ -1,5 +1,4 @@
 use anyhow::Result;
-use eframe::egui;
 use futures::Future;
 use russh::keys::*;
 use std::path::PathBuf;
@@ -11,20 +10,6 @@ use tokio::process::Command;
 use crate::env::litterbox_binary_path;
 use crate::extract_stdout;
 use crate::files::SshSockFile;
-
-#[derive(Clone)]
-struct AskAgent {
-    lbx_name: String,
-    litterbox_path: PathBuf,
-    agent_state: Arc<AgentState>,
-}
-
-#[derive(Debug, EnumString, Display)]
-enum UserResponse {
-    Approved,
-    Declined,
-    ApprovedForSession,
-}
 
 #[derive(PartialEq, Eq, Hash, Display, Clone, Copy, EnumString)]
 pub enum UserRequest {
@@ -53,6 +38,37 @@ impl From<agent::server::MessageType> for UserRequest {
     }
 }
 
+#[derive(Debug, EnumString, Display)]
+pub enum UserResponse {
+    Approved,
+    Declined,
+    ApprovedForSession,
+}
+
+pub struct AgentState {
+    /// When the agent is locked, users will need to approve requests
+    pub locked: AtomicBool,
+
+    /// When set, users no longer need to approve requests to list keys
+    pub approved_for_session: AtomicBool,
+}
+
+impl Default for AgentState {
+    fn default() -> Self {
+        Self {
+            locked: AtomicBool::new(false),
+            approved_for_session: AtomicBool::new(false),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct AskAgent {
+    lbx_name: String,
+    litterbox_path: PathBuf,
+    agent_state: Arc<AgentState>,
+}
+
 impl agent::server::Agent for AskAgent {
     fn confirm(
         self,
@@ -79,7 +95,7 @@ impl agent::server::Agent for AskAgent {
             return true;
         }
 
-        let output = Command::new(self.litterbox_path.clone())
+        let output = Command::new(&self.litterbox_path)
             .args([
                 "confirm",
                 "--request",
@@ -94,82 +110,25 @@ impl agent::server::Agent for AskAgent {
         let stdout =
             extract_stdout(&output).expect("Litterbox should return valid output to itself.");
 
-        // We ignore the last character which will be a newline
-        let resp_str = &stdout[..(stdout.len() - 1)];
+        // STDOUT might contain a newline
+        let response = stdout.trim();
 
-        if let Ok(resp) = resp_str.parse() {
-            match resp {
+        if let Ok(response) = response.parse() {
+            match response {
                 UserResponse::Approved => true,
                 UserResponse::Declined => false,
                 UserResponse::ApprovedForSession => {
                     self.agent_state
                         .approved_for_session
                         .store(true, Ordering::SeqCst);
+
                     true
                 }
             }
         } else {
-            log::error!("Unexpected confirmation response: {}", resp_str);
+            log::error!("Unexpected confirmation response '{response}'");
+
             false
-        }
-    }
-}
-
-struct ConfirmationDialog<'a> {
-    user_response: &'a mut UserResponse,
-    user_request: &'a UserRequest,
-    lbx_name: &'a str,
-}
-
-impl eframe::App for ConfirmationDialog<'_> {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("New SSH Request");
-            ui.horizontal(|ui| {
-                ui.label("From Litterbox:");
-                ui.label(egui::RichText::new(self.lbx_name).strong());
-            });
-
-            ui.add(egui::Image::new(egui::include_image!("../assets/cat.svg")).max_width(400.0));
-            ui.horizontal(|ui| {
-                ui.label("Request:");
-                ui.label(egui::RichText::new(self.user_request.to_string()).strong());
-            });
-
-            ui.horizontal(|ui| {
-                if ui.button("Approve").clicked() {
-                    *self.user_response = UserResponse::Approved;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                }
-
-                if ui.button("Decline").clicked() {
-                    *self.user_response = UserResponse::Declined;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                }
-
-                let may_approve_for_session = *self.user_request == UserRequest::RequestKeys;
-                if may_approve_for_session && ui.button("Approve for Session").clicked() {
-                    *self.user_response = UserResponse::ApprovedForSession;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                }
-            });
-        });
-    }
-}
-
-pub struct AgentState {
-    /// When the agent is locked, users will need to approve requests
-    pub locked: AtomicBool,
-
-    /// When set, users no longer need to approve requests to list keys
-    pub approved_for_session: AtomicBool,
-}
-
-impl Default for AgentState {
-    fn default() -> Self {
-        Self {
-            locked: AtomicBool::new(false),
-            approved_for_session: AtomicBool::new(false),
         }
     }
 }
@@ -204,34 +163,4 @@ pub async fn start_ssh_agent(lbx_name: &str, agent_state: Arc<AgentState>) -> Re
     });
 
     Ok(agent_path)
-}
-
-pub fn prompt_confirmation(request: &str, lbx_name: &str) {
-    let mut native_options = eframe::NativeOptions::default();
-    native_options.viewport.inner_size = Some((270.0, 340.0).into());
-
-    let user_request = request
-        .parse()
-        .expect("User request input should be valid.");
-    let mut user_response = UserResponse::Declined;
-
-    let run_result = eframe::run_native(
-        "Litterbox",
-        native_options,
-        Box::new(|cc| {
-            egui_extras::install_image_loaders(&cc.egui_ctx);
-
-            Ok(Box::new(ConfirmationDialog {
-                user_response: &mut user_response,
-                user_request: &user_request,
-                lbx_name,
-            }))
-        }),
-    );
-
-    if let Err(e) = run_result {
-        eprintln!("Error running ConfirmationDialog: {:#?}", e);
-    }
-
-    println!("{user_response}");
 }

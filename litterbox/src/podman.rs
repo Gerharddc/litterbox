@@ -14,7 +14,7 @@ use std::{
 use crate::{
     daemon, env, extract_stdout,
     files::{self, SshSockFile},
-    gen_random_name,
+    generate_name,
     keys::Keys,
     settings::LitterboxSettings,
 };
@@ -30,6 +30,19 @@ enum GpuDevice {
 }
 
 impl GpuDevice {
+    /// Detects the available GPU device based on what exists on the system
+    fn try_detect() -> Option<Self> {
+        if Path::new("/dev/dri").exists() {
+            debug!("/dev/dri available");
+            Some(Self::Dri)
+        } else if Path::new("/dev/dxg").exists() {
+            debug!("/dev/dxg available (WSL)");
+            Some(Self::Dxg)
+        } else {
+            None
+        }
+    }
+
     fn device_path(&self) -> &'static str {
         match self {
             GpuDevice::Dri => "/dev/dri",
@@ -42,19 +55,6 @@ impl GpuDevice {
             GpuDevice::Dri => "/dev/dri:/dev/dri",
             GpuDevice::Dxg => "/dev/dxg:/dev/dxg",
         }
-    }
-}
-
-/// Detects the available GPU device based on what exists on the system
-fn detect_gpu_device() -> Option<GpuDevice> {
-    if Path::new("/dev/dri").exists() {
-        debug!("/dev/dri available");
-        Some(GpuDevice::Dri)
-    } else if Path::new("/dev/dxg").exists() {
-        debug!("/dev/dxg available (WSL)");
-        Some(GpuDevice::Dxg)
-    } else {
-        None
     }
 }
 
@@ -101,14 +101,14 @@ pub fn list_containers() -> Result<AllContainers> {
     let output = Command::new("podman")
         .args([
             "ps",
-            "-a",
+            "--all",
             "--format",
             "json",
             "--filter",
             "label=work.litterbox.name",
         ])
         .output()
-        .context("Failed to run podman command")?;
+        .context("Failed to run 'podman ps' command")?;
 
     let stdout = extract_stdout(&output)?;
     Ok(serde_json::from_str(stdout)?)
@@ -118,7 +118,7 @@ pub fn get_container_details(lbx_name: &str) -> Result<Option<ContainerDetails>>
     let output = Command::new("podman")
         .args([
             "ps",
-            "-a",
+            "--all",
             "--format",
             "json",
             "--filter",
@@ -128,12 +128,12 @@ pub fn get_container_details(lbx_name: &str) -> Result<Option<ContainerDetails>>
         .context("Failed to run podman command")?;
 
     let stdout = extract_stdout(&output)?;
-    let containers: AllContainers = serde_json::from_str(stdout)?;
+    let AllContainers(mut containers) = serde_json::from_str(stdout)?;
 
-    match containers.0.len() {
+    match containers.len() {
         0 => Ok(None),
-        1 => Ok(Some(containers.0[0].clone())),
-        _ => Err(anyhow!("Multiple containers found for {}", lbx_name)),
+        1 => Ok(Some(containers.swap_remove(0))),
+        _ => bail!("Multiple containers found for \"{lbx_name}\""),
     }
 }
 
@@ -142,7 +142,7 @@ pub fn get_image_details(lbx_name: &str) -> Result<Option<ImageDetails>> {
         .args([
             "image",
             "ls",
-            "-a",
+            "--all",
             "--format",
             "json",
             "--filter",
@@ -154,16 +154,19 @@ pub fn get_image_details(lbx_name: &str) -> Result<Option<ImageDetails>> {
         .context("Failed to run podman command")?;
 
     let stdout = extract_stdout(&output)?;
-    let images: AllImages = serde_json::from_str(stdout)?;
+    let AllImages(mut images) = serde_json::from_str(stdout)?;
 
-    match images.0.len() {
+    match images.len() {
         0 => Ok(None),
-        1 => Ok(Some(images.0[0].clone())),
-        _ => Err(anyhow!("Multiple images found for {}", lbx_name)),
+        1 => Ok(Some(images.swap_remove(0))),
+        _ => bail!("Multiple images found for \"{lbx_name}\""),
     }
 }
 
 pub fn is_container_running(lbx_name: &str) -> Result<bool> {
+    // We can't use get_container_details() here because multiple containers
+    // might be running.
+
     let output = Command::new("podman")
         .args([
             "ps",
@@ -215,7 +218,8 @@ pub fn build_image(lbx_name: &str) -> Result<()> {
             }
             details.names[0].clone()
         }
-        None => gen_random_name(),
+
+        None => generate_name(),
     };
 
     let dockerfile_path = files::dockerfile_path(lbx_name)?;
@@ -235,11 +239,11 @@ pub fn build_image(lbx_name: &str) -> Result<()> {
             &format!("UID={}", getuid().as_raw()),
             "--build-arg",
             &format!("GID={}", getgid().as_raw()),
-            "-t",
+            "--tag",
             &image_name,
             "--label",
             &format!("work.litterbox.name={lbx_name}"),
-            "-f",
+            "--file",
             dockerfile_path.to_str().expect("Invalid dockerfile_path."),
         ])
         .spawn()
@@ -277,7 +281,7 @@ pub fn build_litterbox(lbx_name: &str) -> Result<()> {
             }
         }
 
-        None => gen_random_name(),
+        None => generate_name(),
     };
 
     // --userns=keep-id is used, so this is fine to be used in the container.
@@ -364,7 +368,7 @@ pub fn build_litterbox(lbx_name: &str) -> Result<()> {
     cmd.arg("--volume");
     cmd.arg(home_mount);
 
-    match detect_gpu_device() {
+    match GpuDevice::try_detect() {
         Some(dev) => {
             debug!("Appending GPU device args for '{}'", dev.device_path());
             cmd.args(["--volume", dev.volume_mount()]);

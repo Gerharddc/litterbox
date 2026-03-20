@@ -16,19 +16,19 @@ mod template;
 
 use crate::keys::Keys;
 
-fn extract_stdout(output: &Output) -> Result<&str> {
+pub fn extract_stdout(output: &Output) -> Result<&str> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
-        bail!("Podman command failed: {stderr}");
+        bail!("Command failed: {stderr}");
     }
 
     Ok(str::from_utf8(&output.stdout)?)
 }
 
-fn gen_random_name() -> String {
+pub fn generate_name() -> String {
     let mut generator = names::Generator::with_naming(names::Name::Numbered);
-    let name = generator.next().expect("Name should not be none.");
+    let name = generator.next().expect("Name should not be None");
 
     format!("lbx-{name}")
 }

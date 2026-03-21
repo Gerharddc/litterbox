@@ -7,16 +7,16 @@ fn get_env(lbx_name: &'static str) -> Result<String> {
     Ok(value)
 }
 
-pub fn home_dir() -> Result<String> {
-    get_env("HOME")
+pub fn home_dir() -> Result<PathBuf> {
+    get_env("HOME").map(PathBuf::from)
 }
 
 pub fn wayland_display() -> Result<String> {
     get_env("WAYLAND_DISPLAY")
 }
 
-pub fn xdg_runtime_dir() -> Result<String> {
-    get_env("XDG_RUNTIME_DIR")
+pub fn xdg_runtime_dir() -> Result<PathBuf> {
+    get_env("XDG_RUNTIME_DIR").map(PathBuf::from)
 }
 
 pub fn shell() -> Result<String> {

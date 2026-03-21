@@ -6,7 +6,7 @@ use nix::unistd::{Gid, Uid, chown, setgid, setuid};
 use std::{
     ffi::OsString,
     os::unix::{fs::symlink, process::CommandExt},
-    path::{Path, PathBuf},
+    path::Path,
     process::Command,
 };
 
@@ -71,7 +71,7 @@ pub fn entrypoint(
         symlink("/litterbox", sudo_path)?;
     }
 
-    let xdg_runtime_dir = PathBuf::from(xdg_runtime_dir().context("$XDG_RUNTIME_DIR is not set")?);
+    let xdg_runtime_dir = xdg_runtime_dir().context("$XDG_RUNTIME_DIR is not set")?;
 
     chown(&xdg_runtime_dir, Some(uid), Some(gid))
         .context("Failed to set owner of $XDG_RUNTIME_DIR")?;

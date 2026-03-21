@@ -121,9 +121,10 @@ pub fn cleanup_dead_pids_from_session_lockfile(path: &Path) -> Result<()> {
 }
 
 pub fn pipewire_socket_path() -> Result<PathBuf> {
-    let xdg_runtime_dir = env::xdg_runtime_dir()?;
+    let mut xdg_runtime_dir = env::xdg_runtime_dir()?;
+    xdg_runtime_dir.push("pipewire-0");
 
-    Ok(format!("{xdg_runtime_dir}/pipewire-0").into())
+    Ok(xdg_runtime_dir)
 }
 
 pub fn write_file(path: &Path, contents: &str) -> Result<()> {
@@ -216,10 +217,9 @@ impl Drop for SshSockFile {
 }
 
 pub fn setup_home() -> Result<()> {
-    let home = env::home_dir()?;
-    let marker = format!("{}/.home-built", home);
+    let marker = env::home_dir()?.join(".home-built");
 
-    if Path::new(&marker).exists() {
+    if marker.exists() {
         eprintln!("Home already built; skipping.");
     } else {
         eprintln!("Building home for the first time...");

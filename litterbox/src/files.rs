@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use nix::unistd::Pid;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -46,7 +47,7 @@ pub fn daemon_log_file(lbx_name: &str) -> Result<File> {
     File::create(&path).context("Could not create daemon log file")
 }
 
-pub fn append_pid_to_session_lockfile(path: &Path, pid: u32) -> Result<()> {
+pub fn append_pid_to_session_lockfile(path: &Path, pid: Pid) -> Result<()> {
     let mut pids = read_pids_from_session_lockfile(path)?;
 
     if !pids.contains(&pid) {
@@ -58,7 +59,7 @@ pub fn append_pid_to_session_lockfile(path: &Path, pid: u32) -> Result<()> {
     Ok(())
 }
 
-pub fn remove_pid_from_session_lockfile(path: &Path, pid: u32) -> Result<()> {
+pub fn remove_pid_from_session_lockfile(path: &Path, pid: Pid) -> Result<()> {
     let mut pids = read_pids_from_session_lockfile(path)?;
 
     pids.retain(|&p| p != pid);
@@ -67,7 +68,7 @@ pub fn remove_pid_from_session_lockfile(path: &Path, pid: u32) -> Result<()> {
     Ok(())
 }
 
-pub fn write_pids_to_session_lockfile(path: &Path, pids: &[u32]) -> Result<()> {
+pub fn write_pids_to_session_lockfile(path: &Path, pids: &[Pid]) -> Result<()> {
     let content = pids
         .iter()
         .map(|p| p.to_string())
@@ -77,7 +78,7 @@ pub fn write_pids_to_session_lockfile(path: &Path, pids: &[u32]) -> Result<()> {
     write_file(path, &content)
 }
 
-pub fn read_pids_from_session_lockfile(path: &Path) -> Result<Vec<u32>> {
+pub fn read_pids_from_session_lockfile(path: &Path) -> Result<Vec<Pid>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
@@ -87,27 +88,28 @@ pub fn read_pids_from_session_lockfile(path: &Path) -> Result<Vec<u32>> {
     content
         .lines()
         .filter(|line| !line.trim().is_empty())
-        .map(|line| line.trim().parse::<u32>().map_err(anyhow::Error::from))
+        .map(|line| {
+            line.trim()
+                .parse()
+                .map(Pid::from_raw)
+                .map_err(anyhow::Error::from)
+        })
         .collect()
 }
 
 pub fn cleanup_dead_pids_from_session_lockfile(path: &Path) -> Result<()> {
     use nix::sys::signal::kill;
-    use nix::unistd::Pid;
 
     if !path.exists() {
         return Ok(());
     }
 
     let pids = read_pids_from_session_lockfile(path)?;
-    let alive_pids: Vec<u32> = pids
+    let alive_pids = pids
         .iter()
-        .filter(|&pid| {
-            let pid = Pid::from_raw(*pid as i32);
-            kill(pid, None).is_ok()
-        })
         .copied()
-        .collect();
+        .filter(|&pid| kill(pid, None).is_ok())
+        .collect::<Vec<_>>();
 
     if pids == alive_pids {
         return Ok(());

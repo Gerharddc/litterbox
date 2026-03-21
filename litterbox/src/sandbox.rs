@@ -2,17 +2,11 @@ use anyhow::{Context, Result};
 use landlock::{
     ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr, path_beneath_rules,
 };
-use nix::{
-    libc::{gid_t, uid_t},
-    unistd::{Gid, Uid, setgid, setuid},
-};
+use nix::unistd::{Gid, Uid, chown, setgid, setuid};
 use std::{
     ffi::OsString,
-    os::unix::{
-        fs::{chown, symlink},
-        process::CommandExt,
-    },
-    path::Path,
+    os::unix::{fs::symlink, process::CommandExt},
+    path::{Path, PathBuf},
     process::Command,
 };
 
@@ -62,8 +56,8 @@ pub fn apply_landlock() -> Result<()> {
 
 pub fn entrypoint(
     root: bool,
-    uid: uid_t,
-    gid: gid_t,
+    uid: Uid,
+    gid: Gid,
     command: Option<OsString>,
     args: Vec<OsString>,
 ) -> Result<()> {
@@ -77,14 +71,14 @@ pub fn entrypoint(
         symlink("/litterbox", sudo_path)?;
     }
 
-    let xdg_runtime_dir = xdg_runtime_dir().context("$XDG_RUNTIME_DIR is not set")?;
+    let xdg_runtime_dir = PathBuf::from(xdg_runtime_dir().context("$XDG_RUNTIME_DIR is not set")?);
 
-    chown(xdg_runtime_dir, Some(uid), Some(gid))
+    chown(&xdg_runtime_dir, Some(uid), Some(gid))
         .context("Failed to set owner of $XDG_RUNTIME_DIR")?;
 
     if !root {
-        setgid(Gid::from_raw(uid))?;
-        setuid(Uid::from_raw(gid))?;
+        setgid(gid)?;
+        setuid(uid)?;
         eprintln!("Dropped permissions to non-root user");
     }
 

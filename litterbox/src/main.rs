@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use inquire_derive::Selectable;
 use log::info;
-use nix::libc::{gid_t, uid_t};
+use nix::unistd::{Gid, Uid};
 use std::{ffi::OsString, fmt::Display, path::PathBuf, process::Output};
 use tabled::{Table, Tabled};
 
@@ -219,12 +219,12 @@ enum Command {
         root: bool,
 
         /// The UID to drop to if dropping privileges
-        #[arg(long)]
-        uid: uid_t,
+        #[arg(long, value_parser = |x: &str| x.parse().map(Uid::from_raw))]
+        uid: Uid,
 
         /// The GID to drop to if dropping privileges
-        #[arg(long)]
-        gid: gid_t,
+        #[arg(long, value_parser = |x: &str| x.parse().map(Gid::from_raw))]
+        gid: Gid,
 
         /// The command to execute instead of the login shell
         command: Option<OsString>,

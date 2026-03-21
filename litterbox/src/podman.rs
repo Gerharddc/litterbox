@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, anyhow, ensure};
 use inquire::Confirm;
 use log::{debug, info, trace, warn};
-use nix::unistd::{getgid, getuid};
+use nix::unistd::{Pid, getgid, getuid};
 use serde::Deserialize;
 use std::{
     ffi::OsString,
@@ -487,7 +487,7 @@ pub fn enter_litterbox(
         }
     }
 
-    let my_pid = std::process::id();
+    let my_pid = Pid::this();
     let session_lock = files::session_lock_path(lbx_name)?;
     files::append_pid_to_session_lockfile(&session_lock, my_pid)?;
 

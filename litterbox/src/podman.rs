@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use inquire::Confirm;
-use log::{debug, info, trace, warn};
+use log::info;
+use log::{debug, trace, warn};
 use nix::unistd::{Pid, getgid, getuid};
 use serde::Deserialize;
 use std::{
@@ -17,6 +18,10 @@ use crate::{
     generate_name,
     keys::Keys,
     settings::LitterboxSettings,
+};
+use crate::{
+    files::{dockerfile_path, write_file},
+    template::Template,
 };
 
 const LBX_USER: &str = "user";
@@ -172,6 +177,21 @@ pub fn get_image(lbx_name: &str) -> Result<Option<Image>> {
     }
 }
 
+pub fn define_litterbox(lbx_name: &str) -> anyhow::Result<()> {
+    let dockerfile = dockerfile_path(lbx_name)?;
+
+    if dockerfile.exists() {
+        bail!("Dockerfile already exists at {dockerfile:?}");
+    }
+
+    let template = Template::select("Choose a template:").prompt()?;
+
+    write_file(dockerfile.as_path(), template.contents())?;
+    info!("Default Dockerfile written to {dockerfile:?}");
+
+    Ok(())
+}
+
 pub fn build_image(lbx_name: &str) -> Result<()> {
     let image_name = match get_image(lbx_name)? {
         Some(details) => {
@@ -201,9 +221,9 @@ pub fn build_image(lbx_name: &str) -> Result<()> {
     let dockerfile_path = files::dockerfile_path(lbx_name)?;
 
     if !dockerfile_path.exists() {
-        bail!(
-            "{dockerfile_path:?} does not exist. Please run `litterbox define` to create a template.",
-        );
+        info!("{dockerfile_path:?} does not exist.");
+        // Ask the user right away for convenience. They can always CTRL + C
+        define_litterbox(lbx_name)?;
     }
 
     let child = Command::new("podman")

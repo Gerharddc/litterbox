@@ -16,6 +16,7 @@ RUN apt-get install -y gcc
 ARG USER
 ARG UID
 ARG GID
+RUN groupadd -g $GID $USER || true
 RUN usermod -l $USER ubuntu -u $UID -g $GID -m -d /home/$USER
 WORKDIR /home/$USER
 

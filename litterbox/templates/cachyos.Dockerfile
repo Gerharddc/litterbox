@@ -17,6 +17,7 @@ RUN pacman -S --noconfirm gcc
 ARG USER
 ARG UID
 ARG GID
+RUN groupadd -g $GID $USER || true
 RUN useradd -m $USER -u $UID -g $GID
 WORKDIR /home/$USER
 

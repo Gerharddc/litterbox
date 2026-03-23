@@ -5,24 +5,23 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::files::lbx_home_path;
+use crate::{files::lbx_home_path, utils::trace_arguments};
 
 fn mknod(major_num: u64, minor_num: u64, dev_type: &str, path: &Path) -> Result<()> {
     eprintln!(
         "Root permissions are required to create a device node. Please enter your password if prompted."
     );
 
-    let mut child = Command::new("sudo")
-        .args([
-            "mknod",
-            &path.to_string_lossy(), // TODO: maybe do something else instead?
-            dev_type,
-            &major_num.to_string(),
-            &minor_num.to_string(),
-        ])
-        .spawn()
-        .context("Failed to run mknod command")?;
-
+    let mut cmd = Command::new("sudo");
+    cmd.args([
+        "mknod",
+        &path.to_string_lossy(), // TODO: maybe do something else instead?
+        dev_type,
+        &major_num.to_string(),
+        &minor_num.to_string(),
+    ]);
+    trace_arguments(&cmd);
+    let mut child = cmd.spawn().context("Failed to run mknod command")?;
     let res = child.wait().context("Failed to run mknod command")?;
 
     ensure!(res.success(), "mknod command failed");

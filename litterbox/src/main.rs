@@ -41,6 +41,7 @@ fn main() -> anyhow::Result<()> {
 
     env_logger::init();
 
-    // SAFETY: The function is called in a single-threaded process.
+    // SAFETY: As per `commands::entrypoint`'s requirements, the function is
+    // called in a single-threaded process.
     unsafe { args.command.run() }
 }

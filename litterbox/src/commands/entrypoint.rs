@@ -167,12 +167,7 @@ impl Command {
                     }
                 }
 
-                Ok(
-                    status @ (WaitStatus::PtraceEvent(..)
-                    | WaitStatus::PtraceSyscall(..)
-                    | WaitStatus::Continued(..)
-                    | WaitStatus::Stopped(..)),
-                ) => {
+                Ok(status) => {
                     warn!("Child signaled with unhandled status: {status:?}");
                 }
 

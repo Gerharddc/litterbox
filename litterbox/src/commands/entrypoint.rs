@@ -21,6 +21,7 @@ pub struct Command {
 
 impl Command {
     pub fn run(self) -> Result<()> {
-        run_entrypoint(self.uid, self.gid, self.opts)
+        // SAFETY: run_entrypoint runs in a single-threaded process.
+        unsafe { run_entrypoint(self.uid, self.gid, self.opts) }
     }
 }

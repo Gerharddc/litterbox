@@ -4,7 +4,7 @@ use crate::{
         get_container, is_container_running, start_daemon, wait_for_podman, wait_for_podman_async,
     },
     sandbox,
-    utils::SU_BINARIES,
+    utils::{SU_BINARIES, trace_arguments},
 };
 use anyhow::{Context as _, Result, anyhow, bail};
 use clap::Args;
@@ -109,11 +109,12 @@ pub fn enter_litterbox(
     if !is_container_running(lbx_name)? {
         info!("Container is not running yet; starting now...");
 
-        let start_child = Command::new("podman")
-            .args(["start", &container_id])
-            .spawn()
-            .context("Failed to run podman command")?;
+        let mut cmd = Command::new("podman");
+        cmd.stdout(Stdio::null());
+        cmd.args(["start", &container_id]);
+        trace_arguments(&cmd);
 
+        let start_child = cmd.spawn().context("Failed to run podman command")?;
         wait_for_podman(start_child)?;
     } else {
         debug!("Container is already running; just attaching...")
@@ -130,7 +131,7 @@ pub fn enter_litterbox(
         ))?;
 
     files::remove_pid_from_session_lockfile(&session_lock, my_pid)?;
-    debug!("Litterbox finished.");
+
     Ok(())
 }
 
@@ -206,7 +207,17 @@ async fn container_exec_entrypoint(
     Ok(())
 }
 
-pub fn run_entrypoint(uid: Uid, gid: Gid, opts: CommonEntrypointOptions) -> Result<()> {
+/// Runs the entrypoint of a container.
+///
+/// # Safety
+///
+/// - This function may fork the current process for daemonization. Ensure you
+///   call this function in a single-threaded process. For more information see
+///   [`pre_exec`]'s note on safety and [nix-rust/nix#2663].
+///
+/// [nix-rust/nix#2663]: https://github.com/nix-rust/nix/issues/2663
+/// [`pre_exec`]: std::os::unix::process::CommandExt::pre_exec
+pub unsafe fn run_entrypoint(uid: Uid, gid: Gid, opts: CommonEntrypointOptions) -> Result<()> {
     let xdg_runtime_dir = env::xdg_runtime_dir().context("$XDG_RUNTIME_DIR is not set")?;
 
     chown(&xdg_runtime_dir, Some(uid), Some(gid))
@@ -318,10 +329,14 @@ pub fn run_entrypoint(uid: Uid, gid: Gid, opts: CommonEntrypointOptions) -> Resu
                     None => {
                         info!("{LOGIN_SHELL_FINISHED_MSG}. Continuing in the background...");
 
-                        // TODO: Daemonize
-                        //
-                        // NOTE: What about the actual init process `litterbox
-                        // wait` command? Do I merge them together?
+                        // SAFETY: The caller must ensure this function is called from a single-threaded process.
+                        #[expect(
+                            unused_unsafe,
+                            reason = "https://github.com/nix-rust/nix/issues/2663 seeks to mark daemon as unsafe"
+                        )]
+                        unsafe {
+                            nix::unistd::daemon(true, true).context("Failed to daemonize self")?;
+                        }
                     }
                 }
             }

@@ -40,5 +40,8 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     env_logger::init();
+
+    // NOTE: `$0 entrypoint` must run in single-threaded mode, otherwise UB will
+    // occur.
     args.command.run()
 }

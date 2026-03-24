@@ -6,7 +6,7 @@ use log::{debug, info, warn};
 use nix::{
     sys::{
         prctl::set_child_subreaper,
-        signal::{Signal, killpg},
+        signal::{Signal, kill, killpg},
         wait::{WaitPidFlag, WaitStatus, waitpid},
     },
     unistd::{Gid, Pid, Uid, chown, getpgrp, setgid, setuid},
@@ -143,10 +143,8 @@ impl Command {
 
                         Some(false) => {
                             info!("{LOGIN_SHELL_FINISHED_MSG}. Exiting anyway...");
-                            // Kill all descendants of this process forcefully.
-                            //
-                            // FIXME: Should they be forcefully killed? What about a graceful exit?
-                            let _ = killpg(getpgrp(), Some(Signal::SIGKILL));
+                            kill(Pid::from_raw(-1), Signal::SIGKILL)
+                                .context("Kill all child processes")?;
 
                             break;
                         }

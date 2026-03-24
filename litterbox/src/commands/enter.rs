@@ -67,7 +67,7 @@ impl Command {
             let start_child = cmd.spawn().context("Failed to run podman command")?;
             wait_for_podman(start_child)?;
         } else {
-            debug!("Container is already running; just attaching...")
+            debug!("Container {container_id:?} is already running; just attaching...")
         }
 
         tokio::runtime::Runtime::new()

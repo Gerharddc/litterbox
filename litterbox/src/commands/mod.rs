@@ -48,10 +48,7 @@ pub enum Command {
 }
 
 impl Command {
-    /// # Safety
-    ///
-    /// - Ensure you uphold [`entrypoint::Command::run`]'s safety requirements.
-    pub unsafe fn run(self) -> anyhow::Result<()> {
+    pub fn run(self) -> anyhow::Result<()> {
         match self {
             Command::Define(command) => command.run(),
             Command::Build(command) => command.run(),
@@ -63,7 +60,7 @@ impl Command {
             Command::Confirm(command) => command.run(),
             Command::Daemon(command) => command.run(),
             Command::Wait(command) => command.run(),
-            Command::Entrypoint(command) => unsafe { command.run() },
+            Command::Entrypoint(command) => command.run(),
         }
     }
 }

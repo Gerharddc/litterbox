@@ -6,10 +6,10 @@ use log::{debug, info, warn};
 use nix::{
     sys::{
         prctl::set_child_subreaper,
-        signal::{Signal, kill, killpg},
+        signal::{Signal, kill},
         wait::{WaitPidFlag, WaitStatus, waitpid},
     },
-    unistd::{Gid, Pid, Uid, chown, getpgrp, setgid, setuid},
+    unistd::{Gid, Pid, Uid, chown, setgid, setuid},
 };
 use std::{
     os::unix::{fs::symlink, prelude::ExitStatusExt},
@@ -32,17 +32,7 @@ pub struct Command {
 }
 
 impl Command {
-    /// Runs the entrypoint of a container.
-    ///
-    /// # Safety
-    ///
-    /// - This function may fork the current process for daemonization. Ensure you
-    ///   call this function in a single-threaded process. For more information see
-    ///   [`pre_exec`]'s note on safety and [nix-rust/nix#2663].
-    ///
-    /// [nix-rust/nix#2663]: https://github.com/nix-rust/nix/issues/2663
-    /// [`pre_exec`]: std::os::unix::process::CommandExt::pre_exec
-    pub unsafe fn run(self) -> Result<()> {
+    pub fn run(self) -> Result<()> {
         use std::process::Command;
 
         let xdg_runtime_dir = env::xdg_runtime_dir().context("$XDG_RUNTIME_DIR is not set")?;
@@ -131,36 +121,23 @@ impl Command {
                 }
 
                 Ok(WaitStatus::StillAlive) => {
-                    const LOGIN_SHELL_FINISHED_MSG: &str = "Login shell has finished, but there are processes running in the background";
-
                     // Disable this arm.
                     waitpid_flags -= WaitPidFlag::WNOHANG;
 
                     match self.opts.wait {
                         Some(true) => {
-                            info!("{LOGIN_SHELL_FINISHED_MSG}. Press CTRL+C to stop them.");
+                            info!("Press CTRL+C to stop orphaned processes.");
                         }
 
                         Some(false) => {
-                            info!("{LOGIN_SHELL_FINISHED_MSG}. Exiting anyway...");
                             kill(Pid::from_raw(-1), Signal::SIGKILL)
                                 .context("Kill all child processes")?;
-
                             break;
                         }
 
                         None => {
-                            info!("{LOGIN_SHELL_FINISHED_MSG}. Continuing in the background...");
-
-                            // SAFETY: The caller must ensure this function is called from a single-threaded process.
-                            #[expect(
-                                unused_unsafe,
-                                reason = "https://github.com/nix-rust/nix/issues/2663 seeks to mark daemon as unsafe"
-                            )]
-                            unsafe {
-                                nix::unistd::daemon(true, true)
-                                    .context("Failed to daemonize itself")?;
-                            }
+                            info!("Continuing orphaned processes in the background...");
+                            break;
                         }
                     }
                 }

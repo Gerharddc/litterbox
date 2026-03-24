@@ -6,6 +6,7 @@ mod agent;
 mod commands;
 mod daemon;
 mod devices;
+mod entrypoint;
 mod env;
 mod files;
 mod keys;

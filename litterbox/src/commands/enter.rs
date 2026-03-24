@@ -1,9 +1,9 @@
-use std::{ffi::OsString, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Args;
 
-use crate::podman::enter_litterbox;
+use crate::entrypoint::{CommonEntrypointOptions, Interactive, Tty, enter_litterbox};
 
 /// Enter an existing Litterbox
 #[derive(Args, Debug)]
@@ -13,34 +13,19 @@ pub struct Command {
 
     /// Make STDIN available to the contained process. Defaults to "true" if
     /// COMMAND is not supplied
-    #[arg(long, short, default_value_t = false)]
-    interactive: bool,
+    #[arg(long, short, default_value_t = Interactive(false))]
+    interactive: Interactive,
 
     /// Allocate a pseudo-TTY. Defaults to "true" if COMMAND is not supplied
-    #[arg(long, short, default_value_t = false)]
-    tty: bool,
+    #[arg(long, short, default_value_t = Tty(false))]
+    tty: Tty,
 
     /// Working directory inside the container
     #[arg(long, short)]
     workdir: Option<PathBuf>,
 
-    /// Run as root inside the container
-    #[arg(long, default_value_t = false)]
-    root: bool,
-
-    /// The command to execute instead of the login shell
-    command: Option<OsString>,
-
-    /// When set to `true`, it will wait for background processes to finish
-    /// in the foreground. When set to `false`, it will send SIGKILL to all
-    /// background processes. If it's not specified, litterbox will wait for
-    /// background processes in the background.
-    #[arg(long)]
-    wait: Option<bool>,
-
-    /// Additional arguments passed to the command
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-    args: Vec<OsString>,
+    #[clap(flatten)]
+    opts: CommonEntrypointOptions,
 }
 
 impl Command {
@@ -50,14 +35,7 @@ impl Command {
             self.interactive,
             self.tty,
             self.workdir,
-            self.command,
-            self.args,
-            self.root,
-            self.wait,
-        )?;
-
-        eprintln!("Exited Litterbox");
-
-        Ok(())
+            self.opts,
+        )
     }
 }

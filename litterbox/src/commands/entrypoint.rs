@@ -1,18 +1,12 @@
-use std::ffi::OsString;
-
 use anyhow::Result;
 use clap::Args;
 use nix::unistd::{Gid, Uid};
 
-use crate::sandbox::entrypoint;
+use crate::{entrypoint::CommonEntrypointOptions, sandbox::entrypoint};
 
 /// Container entrypoint (for internal use)
 #[derive(Args, Debug)]
 pub struct Command {
-    /// Run as root instead of dropping privileges
-    #[arg(long, default_value_t = false)]
-    root: bool,
-
     /// The UID to drop to if dropping privileges
     #[arg(long, value_parser = |x: &str| x.parse().map(Uid::from_raw))]
     uid: Uid,
@@ -21,32 +15,12 @@ pub struct Command {
     #[arg(long, value_parser = |x: &str| x.parse().map(Gid::from_raw))]
     gid: Gid,
 
-    /// When set to `true`, it will wait for background processes to finish
-    /// in the foreground. When set to `false`, it will send SIGKILL to all
-    /// background processes. If it's not specified, litterbox will wait for
-    /// background processes in the background.
-    #[arg(long)]
-    wait: Option<bool>,
-
-    /// The command to execute instead of the login shell
-    command: Option<OsString>,
-
-    /// Additional arguments passed to the command
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-    args: Vec<OsString>,
+    #[clap(flatten)]
+    opts: CommonEntrypointOptions,
 }
 
 impl Command {
     pub fn run(self) -> Result<()> {
-        entrypoint(
-            self.root,
-            self.uid,
-            self.gid,
-            self.command,
-            self.args,
-            self.wait,
-        )?;
-
-        Ok(())
+        entrypoint(self.uid, self.gid, self.opts)
     }
 }

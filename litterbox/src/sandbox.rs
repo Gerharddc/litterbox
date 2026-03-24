@@ -1,4 +1,4 @@
-use crate::{env, files::setup_home};
+use crate::{entrypoint::CommonEntrypointOptions, env, files::setup_home};
 use anyhow::{Context, Result, bail};
 use landlock::{
     ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr, path_beneath_rules,
@@ -13,7 +13,6 @@ use nix::{
     unistd::{Gid, Pid, Uid, chown, getpgrp, setgid, setuid},
 };
 use std::{
-    ffi::OsString,
     os::unix::{fs::symlink, prelude::ExitStatusExt},
     path::Path,
     process::{Command, ExitStatus, Stdio},
@@ -51,14 +50,7 @@ pub fn apply_landlock() -> Result<()> {
     Ok(())
 }
 
-pub fn entrypoint(
-    root: bool,
-    uid: Uid,
-    gid: Gid,
-    prog_name: Option<OsString>,
-    args: Vec<OsString>,
-    wait: Option<bool>,
-) -> Result<()> {
+pub fn entrypoint(uid: Uid, gid: Gid, opts: CommonEntrypointOptions) -> Result<()> {
     let run0_path = Path::new("/usr/bin/run0");
     if !run0_path.exists() {
         symlink("/litterbox", run0_path)?;
@@ -74,7 +66,7 @@ pub fn entrypoint(
     chown(&xdg_runtime_dir, Some(uid), Some(gid))
         .context("Failed to set owner of $XDG_RUNTIME_DIR")?;
 
-    if !root {
+    if !opts.root {
         setgid(gid)?;
         setuid(uid)?;
         debug!("Dropped from root to {uid}:{gid}");
@@ -96,10 +88,10 @@ pub fn entrypoint(
     // Have the shell assume it's a login shell.
     cmd.arg("-l");
 
-    if let Some(mut exec_args) = prog_name {
+    if let Some(mut exec_args) = opts.command {
         // We can't use Command::args for "command" because shells generally
         // expect a single argument for the "-c" option.
-        for arg in args {
+        for arg in opts.args {
             exec_args.push(" ");
             exec_args.push(arg);
         }
@@ -155,7 +147,7 @@ pub fn entrypoint(
                 // Disable this arm.
                 waitpid_flags -= WaitPidFlag::WNOHANG;
 
-                match wait {
+                match opts.wait {
                     Some(true) => {
                         info!("{LOGIN_SHELL_FINISHED_MSG}. Press CTRL+C to stop them.");
                     }

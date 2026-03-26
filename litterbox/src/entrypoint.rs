@@ -50,7 +50,7 @@ pub struct CommonEntrypointOptions {
     pub root: bool,
 
     /// Specify what to do with background processes.
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, default_value_t = Default::default())]
     pub wait: WaitBehaviour,
 
     /// The command to execute with the login shell.

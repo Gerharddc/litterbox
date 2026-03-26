@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
 use log::{debug, info};
 use nix::unistd::Pid;
-use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{
+    fs::{self, File},
+    io::ErrorKind,
+};
 
 use crate::env;
 
@@ -186,10 +189,16 @@ pub fn setup_home() -> Result<()> {
     if marker.exists() {
         debug!("Home already built; skipping.");
     } else {
-        info!("Building home for the first time...");
+        info!("Building home for the first time");
 
         Command::new("/prep-home.sh")
             .status()
+            .or_else(|cause| {
+                // The script is optional.
+                (cause.kind() == ErrorKind::NotFound)
+                    .then(Default::default)
+                    .ok_or(cause)
+            })
             .context("Running /prep-home.sh")?;
 
         File::create(&marker).context("Creating .home-built marker")?;

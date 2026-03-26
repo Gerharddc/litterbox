@@ -1,8 +1,12 @@
 use anyhow::{Context, Result};
+use log::{debug, info};
 use nix::unistd::Pid;
-use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{
+    fs::{self, File},
+    io::ErrorKind,
+};
 
 use crate::env;
 
@@ -138,43 +142,6 @@ pub fn read_file(path: &Path) -> Result<String> {
     Ok(fs::read_to_string(path)?)
 }
 
-pub fn wait_for_sessions_to_finish() -> Result<()> {
-    use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
-
-    let session_lock_path = Path::new("/session.lock");
-    let is_empty = || match std::fs::read_to_string(session_lock_path) {
-        Ok(content) => content.trim().is_empty(),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
-        Err(e) => {
-            log::error!("Failed to read session lock file: {}", e);
-            false
-        }
-    };
-
-    if is_empty() {
-        eprintln!("Session already empty, Litterbox finished.");
-
-        return Ok(());
-    }
-
-    let inotify = Inotify::init(InitFlags::empty())?;
-    inotify.add_watch(session_lock_path, AddWatchFlags::IN_MODIFY)?;
-
-    eprintln!("Litterbox started, waiting for session to become empty.");
-
-    loop {
-        let _ = inotify.read_events()?;
-
-        if is_empty() {
-            break;
-        }
-    }
-
-    eprintln!("Session empty, Litterbox finished.");
-
-    Ok(())
-}
-
 pub struct SshSockFile {
     path: PathBuf,
 }
@@ -220,18 +187,22 @@ pub fn setup_home() -> Result<()> {
     let marker = env::home_dir()?.join(".home-built");
 
     if marker.exists() {
-        eprintln!("Home already built; skipping.");
+        debug!("Home already built; skipping.");
     } else {
-        eprintln!("Building home for the first time...");
+        info!("Building home for the first time");
 
-        if Path::new("/prep-home.sh").exists() {
-            Command::new("/prep-home.sh")
-                .status()
-                .context("Running /prep-home.sh")?;
-        }
+        Command::new("/prep-home.sh")
+            .status()
+            .or_else(|cause| {
+                // The script is optional.
+                (cause.kind() == ErrorKind::NotFound)
+                    .then(Default::default)
+                    .ok_or(cause)
+            })
+            .context("Running /prep-home.sh")?;
 
-        File::create(&marker).context("Building marker")?;
-        eprintln!("Home built!");
+        File::create(&marker).context("Creating .home-built marker")?;
+        info!("Home built!");
     }
 
     Ok(())

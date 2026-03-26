@@ -7,9 +7,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use strum_macros::{Display, EnumString};
 use tokio::process::Command;
 
-use crate::extract_stdout;
 use crate::files::SshSockFile;
-use crate::{env::litterbox_binary_path, utils::trace_arguments};
+use crate::{
+    env::litterbox_binary_path,
+    utils::{extract_stdout, trace_arguments},
+};
 
 #[derive(PartialEq, Eq, Hash, Display, Clone, Copy, EnumString)]
 pub enum UserRequest {

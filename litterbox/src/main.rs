@@ -1,11 +1,12 @@
-use anyhow::{Result, bail};
+use std::env::VarError;
+
 use clap::Parser;
-use std::process::Output;
 
 mod agent;
 mod commands;
 mod daemon;
 mod devices;
+mod entrypoint;
 mod env;
 mod files;
 mod keys;
@@ -15,24 +16,7 @@ mod settings;
 mod template;
 mod utils;
 
-use crate::keys::Keys;
-
-pub fn extract_stdout(output: &Output) -> Result<&str> {
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-
-        bail!("Command failed: {stderr}");
-    }
-
-    Ok(str::from_utf8(&output.stdout)?)
-}
-
-pub fn generate_name() -> String {
-    let mut generator = names::Generator::with_naming(names::Name::Numbered);
-    let name = generator.next().expect("Name should not be None");
-
-    format!("lbx-{name}")
-}
+use crate::{keys::Keys, utils::SU_BINARIES};
 
 /// Simple sandbox utility aimed at software development
 #[derive(Parser, Debug)]
@@ -42,19 +26,33 @@ struct Args {
     command: crate::commands::Command,
 }
 
-fn main() -> Result<()> {
-    env_logger::init();
+fn main() -> anyhow::Result<()> {
+    let arg0 = std::env::args().next();
 
-    let argv_0 = std::env::args().next();
-    if matches!(argv_0.as_deref(), Some("run0" | "sudo")) {
+    if let Some(arg0) = arg0.as_deref()
+        && SU_BINARIES.contains(&arg0)
+    {
         eprintln!(
-            "run0/sudo is not supported inside this session. Use 'litterbox enter --root <name>' to enter as root."
+            "{arg0:?} is not supported inside this session. Use 'litterbox enter --root NAME' to enter as root."
         );
 
-        return Ok(());
+        std::process::exit(1);
     }
 
     let args = Args::parse();
 
+    // Configure default log level for debug and release builds.
+    if std::env::var("RUST_LOG").is_err_and(|e| e == VarError::NotPresent) {
+        // SAFETY: No other threads are reading or writing to env variables.
+        unsafe {
+            #[cfg(debug_assertions)]
+            std::env::set_var("RUST_LOG", "debug");
+
+            #[cfg(not(debug_assertions))]
+            std::env::set_var("RUST_LOG", "info");
+        }
+    }
+
+    env_logger::init();
     args.command.run()
 }

@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use inquire::Confirm;
 use log::info;
 use log::{debug, warn};
-use nix::unistd::{Pid, getgid, getuid};
+use nix::unistd::{getgid, getuid};
 use serde::Deserialize;
 use std::{
     ffi::OsString,
@@ -13,12 +13,11 @@ use std::{
 };
 
 use crate::{
-    daemon, env, extract_stdout,
+    env,
     files::{self, SshSockFile},
-    generate_name,
     keys::Keys,
     settings::LitterboxSettings,
-    utils::trace_arguments,
+    utils::{extract_stdout, generate_name, trace_arguments},
 };
 use crate::{
     files::{dockerfile_path, write_file},
@@ -332,6 +331,9 @@ pub fn build_litterbox(lbx_name: &str) -> Result<()> {
     cmd.arg("--replace");
     cmd.args(["--entrypoint", "[\"/litterbox\", \"wait\"]"]);
     cmd.args(["--env", &format!("HOME=/home/{LBX_USER}")]);
+    // Allow user to specify RUST_LOG to litterbox internal commands. Useful for
+    // development and for debugging.
+    cmd.args(["--env", "RUST_LOG"]);
     cmd.args([
         "--env",
         &format!("SSH_AUTH_SOCK={}/ssh-agent.sock", rt_dir.to_string_lossy()),
@@ -459,130 +461,30 @@ pub fn build_litterbox(lbx_name: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn enter_litterbox(
-    lbx_name: &str,
-    interactive: bool,
-    tty: bool,
-    workdir: Option<PathBuf>,
-    command: Option<OsString>,
-    command_args: Vec<OsString>,
-    root: bool,
-) -> Result<()> {
-    let container =
-        get_container(lbx_name)?.ok_or_else(|| anyhow!("No container found for '{lbx_name}'"))?;
-    let container_id = container.id;
+pub fn start_daemon(lbx_name: &str) -> Result<(), anyhow::Error> {
+    let keys = Keys::load()?;
+    let password = keys.password_if_needed(lbx_name)?;
+    let log_file_out = files::daemon_log_file(lbx_name)?;
+    let log_file_err = log_file_out.try_clone()?;
+    let mut cmd = Command::new(env::litterbox_binary_path());
 
-    if !daemon::is_running(lbx_name)? {
-        if is_container_running(lbx_name)? {
-            warn!("Daemon was not running but container was. Restarting daemon...");
-        }
+    cmd.args(["daemon", lbx_name]);
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::from(log_file_out));
+    cmd.stderr(Stdio::from(log_file_err));
 
-        let keys = Keys::load()?;
-        let password = keys.password_if_needed(lbx_name)?;
+    let mut child = cmd.spawn().context("Failed to run Litterbox daemon")?;
 
-        let log_file = files::daemon_log_file(lbx_name)?;
-        let log_file_clone = log_file.try_clone()?;
+    if let Some(pwd) = password
+        && let Some(mut stdin) = child.stdin.take()
+    {
+        use std::io::Write;
 
-        let mut cmd = Command::new(env::litterbox_binary_path());
-        cmd.args(["daemon", lbx_name]);
-        cmd.stdin(Stdio::piped());
-        cmd.stdout(Stdio::from(log_file));
-        cmd.stderr(Stdio::from(log_file_clone));
-
-        let mut daemon_child = cmd.spawn().context("Failed to run Litterbox daemon")?;
-
-        if let Some(pwd) = password
-            && let Some(mut stdin) = daemon_child.stdin.take()
-        {
-            use std::io::Write;
-
-            stdin
-                .write_all(pwd.as_bytes())
-                .context("Failed to write password to daemon")?;
-        }
+        stdin
+            .write_all(pwd.as_bytes())
+            .context("Failed to write password to daemon")?;
     }
 
-    let my_pid = Pid::this();
-    let session_lock = files::session_lock_path(lbx_name)?;
-    files::append_pid_to_session_lockfile(&session_lock, my_pid)?;
-
-    if !is_container_running(lbx_name)? {
-        eprintln!("Container not running yet, starting now...");
-
-        let start_child = Command::new("podman")
-            .args(["start", &container_id])
-            .spawn()
-            .context("Failed to run podman command")?;
-
-        wait_for_podman(start_child)?;
-    } else {
-        eprintln!("Container already running, just attaching...")
-    }
-
-    tokio::runtime::Runtime::new()
-        .expect("Tokio runtime should start")
-        .block_on(async move {
-            use tokio::process::Command;
-
-            let mut exec_child = Command::new("podman");
-
-            exec_child.arg("exec");
-
-            // Assume -t if we are launching the login shell
-            if tty || command.is_none() {
-                exec_child.arg("--tty");
-            }
-
-            // Assume -i if we are launching the login shell
-            if interactive || command.is_none() {
-                exec_child.arg("--interactive");
-            }
-
-            if let Some(workdir) = workdir {
-                exec_child.arg("--workdir");
-                exec_child.arg(workdir.into_os_string());
-            }
-
-            // We always start as root but then drop down later if needed
-            exec_child.arg("--user");
-            exec_child.arg("root");
-
-            exec_child.args([
-                &container_id,
-                "/litterbox",
-                "entrypoint",
-                "--uid",
-                &getuid().to_string(),
-                "--gid",
-                &getgid().to_string(),
-            ]);
-
-            // The entrypoint is responsible for dropping root if needed
-            if root {
-                exec_child.arg("--root");
-            }
-
-            if let Some(command) = command {
-                exec_child.arg("--");
-                exec_child.arg(command);
-                exec_child.args(command_args);
-            }
-
-            let mut exec_child = exec_child.spawn().context("Failed to run podman command")?;
-
-            eprintln!("Waiting for podman");
-            tokio::select! {
-                _ = wait_for_podman_async(&mut exec_child) => {}
-                _ = tokio::signal::ctrl_c() => {
-                    let _ = exec_child.kill().await;
-                }
-            }
-
-            Result::<()>::Ok(())
-        })?;
-
-    files::remove_pid_from_session_lockfile(&session_lock, my_pid)?;
-    debug!("Litterbox finished.");
     Ok(())
 }
 
@@ -673,13 +575,13 @@ pub fn delete_litterbox(lbx_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn wait_for_podman(mut child: Child) -> Result<()> {
+pub fn wait_for_podman(mut child: Child) -> Result<()> {
     let res = child.wait().context("Failed to run podman command")?;
     ensure!(res.success(), "Podman command failed");
     Ok(())
 }
 
-async fn wait_for_podman_async(child: &mut tokio::process::Child) -> Result<()> {
+pub async fn wait_for_podman_async(child: &mut tokio::process::Child) -> Result<()> {
     let res = child.wait().await.context("Failed to run podman command")?;
     ensure!(res.success(), "Podman command failed");
     Ok(())

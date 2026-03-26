@@ -1,12 +1,11 @@
 //! Common items for `litterbox entrypoint`.
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 use std::{
     ffi::OsString,
     fmt::Display,
     str::{FromStr, ParseBoolError},
 };
-use strum_macros::EnumString;
 
 #[derive(Clone, Debug, Copy)]
 pub struct Tty(pub bool);
@@ -50,13 +49,8 @@ pub struct CommonEntrypointOptions {
     #[arg(long, default_value_t = false)]
     pub root: bool,
 
-    /// Set to "foreground" to wait for background processes to finish
-    ///
-    /// Set to "background" for background processes to continue in the
-    /// background
-    ///
-    /// Set to "kill" to end all background processes
-    #[arg(long, default_value_t = Default::default())]
+    /// Specify what to do with background processes.
+    #[arg(long, value_enum)]
     pub wait: WaitBehaviour,
 
     /// The command to execute with the login shell.
@@ -67,14 +61,24 @@ pub struct CommonEntrypointOptions {
     pub args: Vec<OsString>,
 }
 
-#[derive(Clone, Copy, Debug, Default, EnumString, strum_macros::Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Default, clap::ValueEnum)]
+#[value(rename_all = "snake_case")]
 pub enum WaitBehaviour {
-    /// Wait for orphaned processes to exit.
+    /// Wait for background processes to exit.
     #[default]
     Foreground,
-    /// Send orphaned processes to `litterbox wait`, ending current session.
+    /// Background processes will continue in the background.
     Background,
-    /// Kill orphaned processes with `SIGTERM` and after a while `SIGKILL`.
+    /// Request background processes to exit within 10 seconds, after which kill
+    /// them.
     Kill,
+}
+
+impl Display for WaitBehaviour {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_possible_value()
+            .expect("there are no skipped variants")
+            .get_name()
+            .fmt(f)
+    }
 }

@@ -450,6 +450,13 @@ pub fn build_litterbox(lbx_name: &str) -> Result<()> {
         cmd.args(["--shm-size", &shm_size]);
     }
 
+    if let Some(ref custom_args) = settings.custom_podman_args {
+        debug!("Appending custom podman args: {custom_args}");
+        for arg in custom_args.split_whitespace() {
+            cmd.arg(arg);
+        }
+    }
+
     // It's best to have the image_id as the final argument
     cmd.arg(&image_id);
 

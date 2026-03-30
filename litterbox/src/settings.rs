@@ -73,6 +73,8 @@ pub struct LitterboxSettings {
     pub shm_size_gb: Option<u32>,
     #[serde(default = "default_pasta")]
     pub network_mode: NetworkMode,
+    #[serde(default)]
+    pub custom_podman_args: Option<String>,
 }
 
 fn default_false() -> bool {
@@ -201,6 +203,21 @@ impl LitterboxSettings {
             )
         };
 
+        let custom_podman_args_input =
+            Text::new("Custom podman arguments (space-separated, leave empty for none):")
+                .with_default(
+                    &existing
+                        .and_then(|s| s.custom_podman_args.clone())
+                        .unwrap_or_default(),
+                )
+                .with_help_message("Example: --device /dev/foo --volume /bar")
+                .prompt()?;
+        let custom_podman_args: Option<String> = if custom_podman_args_input.trim().is_empty() {
+            None
+        } else {
+            Some(custom_podman_args_input.trim().to_string())
+        };
+
         Ok(Self {
             version: 1,
             network_mode,
@@ -212,6 +229,7 @@ impl LitterboxSettings {
             keep_groups,
             expose_kfd,
             shm_size_gb,
+            custom_podman_args,
         })
     }
 }

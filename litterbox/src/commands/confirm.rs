@@ -11,8 +11,8 @@ struct ConfirmationDialog<'a> {
 }
 
 impl eframe::App for ConfirmationDialog<'_> {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("New SSH Request");
             ui.horizontal(|ui| {
                 ui.label("From Litterbox:");
@@ -28,18 +28,18 @@ impl eframe::App for ConfirmationDialog<'_> {
             ui.horizontal(|ui| {
                 if ui.button("Approve").clicked() {
                     *self.user_response = UserResponse::Approved;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
 
                 if ui.button("Decline").clicked() {
                     *self.user_response = UserResponse::Declined;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
 
                 let may_approve_for_session = *self.user_request == UserRequest::RequestKeys;
                 if may_approve_for_session && ui.button("Approve for Session").clicked() {
                     *self.user_response = UserResponse::ApprovedForSession;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             });
         });

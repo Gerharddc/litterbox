@@ -21,9 +21,7 @@ use crate::{
 };
 
 fn generate_private_key() -> PrivateKey {
-    use russh::keys::signature::rand_core::OsRng;
-
-    PrivateKey::random(&mut OsRng, Algorithm::Ed25519).expect("Ed25519 should be supported.")
+    PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("Ed25519 should be supported.")
 }
 
 fn hash_password(password: &str) -> String {

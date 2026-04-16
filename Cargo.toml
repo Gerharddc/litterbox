@@ -1,3 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["litterbox", "names"]
+
+# FIXME: remove once Russh releases a version greater than 0.60.0
+[patch.crates-io]
+russh = { git = "https://github.com/Eugeny/russh", rev = "a9057ed36b955e90f6f00455f104e506eb88e411" }
+primeorder = { git = "https://github.com/RustCrypto/elliptic-curves", rev = "55164d6a0db576f675b89b61aa54af564b71fd66" }

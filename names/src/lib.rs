@@ -47,7 +47,7 @@
 //! ```
 
 use rand::prelude::IndexedRandom;
-use rand::{Rng, rngs::ThreadRng};
+use rand::{RngExt, rngs::ThreadRng};
 
 /// List of English adjective words
 pub const ADJECTIVES: &[&str] = &include!(concat!(env!("OUT_DIR"), "/adjectives.rs"));
@@ -99,7 +99,7 @@ impl<'a> Generator<'a> {
             adjectives,
             nouns,
             naming,
-            rng: ThreadRng::default(),
+            rng: rand::rng(),
         }
     }
 

@@ -6,6 +6,7 @@ mod attach;
 mod change_password;
 mod delete;
 mod detach;
+mod export;
 mod generate;
 mod import;
 mod list;
@@ -21,6 +22,8 @@ pub enum Command {
     Delete(#[clap(flatten)] delete::Command),
 
     Detach(#[clap(flatten)] detach::Command),
+
+    Export(#[clap(flatten)] export::Command),
 
     Generate(#[clap(flatten)] generate::Command),
 
@@ -43,6 +46,7 @@ impl Command {
             Command::Delete(command) => command.run(keys),
             Command::Attach(command) => command.run(keys),
             Command::Detach(command) => command.run(keys),
+            Command::Export(command) => command.run(keys),
             Command::Print(command) => command.run(keys),
             Command::ChangePassword(command) => command.run(keys),
         }

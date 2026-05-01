@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use argon2::Argon2;
 use inquire::{MultiSelect, Password};
 use log::debug;
@@ -10,7 +10,7 @@ use russh::keys::{
 use serde::{Deserialize, Serialize};
 use std::{
     io::Read,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, atomic::Ordering},
 };
 use tabled::{Table, Tabled};
@@ -24,6 +24,10 @@ fn generate_private_key() -> PrivateKey {
     use russh::keys::signature::rand_core::OsRng;
 
     PrivateKey::random(&mut OsRng, Algorithm::Ed25519).expect("Ed25519 should be supported.")
+}
+
+fn key_to_openssh(key: &PrivateKey) -> Result<String> {
+    Ok(key.to_openssh(LineEnding::LF)?.to_string())
 }
 
 fn hash_password(password: &str) -> String {
@@ -327,23 +331,34 @@ impl Keys {
                 let keys_password = self.prompt_password()?;
                 let decrypted = key.decrypt(&keys_password);
 
-                let openssh = if private {
-                    decrypted
-                        .to_openssh(LineEnding::LF)
-                        .expect("OpenSSH format key should be valid.")
+                let output = if private {
+                    key_to_openssh(&decrypted)?
                 } else {
-                    let public = decrypted.public_key();
-                    public
-                        .to_openssh()
-                        .expect("OpenSSH format key should be valid.")
-                        .into()
+                    decrypted.public_key().to_openssh()?.to_string()
                 };
 
-                println!("{}", openssh.as_str());
+                println!("{}", output);
                 Ok(())
             }
             None => bail!("Key \"{key_name}\" does not exist"),
         }
+    }
+
+    pub fn export(&self, key_name: &str, path: &Path) -> Result<()> {
+        // TODO: just let self.key return the correct error to begin with
+        let key = self
+            .key(key_name)
+            .ok_or_else(|| anyhow!("Key \"{key_name}\" does not exist"))?;
+
+        let keys_password = self.prompt_password()?;
+        let decrypted = key.decrypt(&keys_password);
+        let output = key_to_openssh(&decrypted)?;
+
+        files::write_file(path, &output)?;
+        eprintln!("Warning: The exported private key is unencrypted. Store it in a secure place!");
+        eprintln!("Exported key \"{key_name}\" to {path:?}");
+
+        Ok(())
     }
 
     pub fn import_key(&mut self, key_name: &str, file_path: PathBuf) -> Result<()> {
@@ -417,5 +432,18 @@ mod tests {
         };
         let decrypted_key = encrypted_key.decrypt(password);
         assert_eq!(decrypted_key, original_key);
+    }
+
+    #[test]
+    fn export_import_round_trip() {
+        let key = generate_private_key();
+
+        let exported = key_to_openssh(&key).unwrap();
+        let imported = decode_secret_key(&exported, None).unwrap();
+
+        assert_eq!(
+            key.public_key().to_openssh().unwrap(),
+            imported.public_key().to_openssh().unwrap()
+        );
     }
 }

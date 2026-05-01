@@ -100,6 +100,8 @@ impl From<&Key> for KeyTableRow {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Keys {
+    #[serde(default)]
+    version: u32,
     password_hash: String,
     keys: Vec<Key>,
 }
@@ -119,6 +121,7 @@ impl Keys {
             .with_display_mode(inquire::PasswordDisplayMode::Masked)
             .prompt()?;
         let s = Self {
+            version: 2,
             password_hash: hash_password(&password),
             keys: Vec::new(),
         };
@@ -135,7 +138,30 @@ impl Keys {
         }
 
         let contents = files::read_file(keyfile.as_path())?;
-        Ok(ron::from_str(&contents)?)
+        let keys: Self = ron::from_str(&contents)?;
+
+        if keys.version < 2 {
+            bail!(
+                "Your key file ({}) uses an older format that is incompatible with this version.\n\
+                 A breaking change in the SSH key encryption library prevents decrypting existing keys.\n\
+                 \n\
+                 To migrate your keys:\n\
+                 1. Downgrade Litterbox to version 0.4.2\n\
+                 2. Make a backup: `cp {} {}.bak`\n\
+                 3. Export all your keys: `litterbox keys export <name> <file>`\n\
+                 4. Delete the keys file: `rm {}`\n\
+                 5. Update to the latest version of Litterbox\n\
+                 6. Run Litterbox again (a new keys file will be created)\n\
+                 7. Import all your keys: `litterbox keys import <name> <file>`\n\
+                 8. Delete the exported key files since they are not encrypted",
+                keyfile.display(),
+                keyfile.display(),
+                keyfile.display(),
+                keyfile.display(),
+            );
+        }
+
+        Ok(keys)
     }
 
     pub fn print_list(&self) {

@@ -1,22 +1,17 @@
-use crate::files;
-use crate::sandbox;
-use crate::utils::SU_BINARIES;
-
-use anyhow::{Context as _, Result, bail};
+use crate::entrypoint::{CommonEntrypointOptions, WaitBehaviour};
+use crate::{env, files, sandbox, utils::SU_BINARIES};
+use anyhow::{bail, Context as _, Result};
 use clap::Args;
 use log::{debug, info, warn};
 use nix::{
     sys::{
         prctl::set_child_subreaper,
-        signal::{Signal, kill},
-        wait::{WaitPidFlag, WaitStatus, waitpid},
+        signal::{kill, Signal},
+        wait::{waitpid, WaitPidFlag, WaitStatus},
     },
-    unistd::{Gid, Pid, Uid, chown, setgid, setuid},
+    unistd::{chown, setgid, setuid, Gid, Pid, Uid},
 };
-use shared::entrypoint::{CommonEntrypointOptions, WaitBehaviour};
-use shared::env;
 use std::{
-    fs,
     os::unix::{fs::symlink, prelude::ExitStatusExt},
     process::{ExitStatus, Stdio},
     sync::mpsc::RecvTimeoutError,
@@ -42,28 +37,15 @@ impl Command {
     pub fn run(self) -> Result<()> {
         use std::process::Command;
 
-        match env::xdg_runtime_dir() {
-            Ok(xdg_runtime_dir) => {
-                if !xdg_runtime_dir.exists()
-                    && let Err(cause) = fs::create_dir_all(&xdg_runtime_dir)
-                {
-                    warn!("Failed to create $XDG_RUNTIME_DIR: {cause}");
-                }
-
-                if let Err(cause) = chown(&xdg_runtime_dir, Some(self.uid), Some(self.gid)) {
-                    warn!("Failed to set owner of $XDG_RUNTIME_DIR: {cause}");
-                }
-            }
-            Err(cause) => {
-                warn!("$XDG_RUNTIME_DIR is unavailable: {cause}");
-            }
-        }
-
-        for su_bin in SU_BINARIES {
-            let _ = symlink("/lbx-init", format!("/usr/bin/{su_bin}"));
-        }
+        let xdg_runtime_dir = env::xdg_runtime_dir().context("$XDG_RUNTIME_DIR is not set")?;
+        chown(&xdg_runtime_dir, Some(self.uid), Some(self.gid))
+            .context("Failed to set owner of $XDG_RUNTIME_DIR")?;
 
         if !self.opts.root {
+            for su_bin in SU_BINARIES {
+                let _ = symlink("/litterbox", format!("/usr/bin/{su_bin}"));
+            }
+
             setgid(self.gid)?;
             setuid(self.uid)?;
             debug!("Dropped from root to {}:{}", self.uid, self.gid);

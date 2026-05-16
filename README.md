@@ -16,6 +16,10 @@ The isolation goal is to prevent rogue processes (which might arrive through a s
 
 N.B. Litterbox is free software that does not come with any warranty or guarantees. It is not an anti-malware solution and does not guarantee that your system will be protected from any attacks. Its goal is just to be BETTER THAN NOTHING but even that is not guaranteed. By using this software you agree that you are doing so at your own risk and take full responsibility for anything that might happen.
 
+## Introductory presentation
+
+[![Litterbox Presentation](https://img.youtube.com/vi/OMCWs7qmKFc/0.jpg)](https://www.youtube.com/watch?v=OMCWs7qmKFc)
+
 ## Isolation limitations
 
 The isolation/sandboxing provided by Litterbox is limited and still leaves open many holes and/or vulnerabilities. It is not intented to shield you from software that is known to be malicious so please do not run malware or untrusted software inside it deliberatly. Its only goal is to try and provide SOME damange limitation in the event that 3rd party software and/or code that you trust were to unexpectedly get compromised.
